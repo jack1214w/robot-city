@@ -240,9 +240,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .colhdr{grid-template-columns:repeat(var(--cols),1fr)}
 .rowhdr{grid-template-rows:repeat(var(--rows),1fr)}
 .colhdr i,.rowhdr i{
-  display:grid;place-items:center;font-style:normal;
+  display:grid;place-items:center;font-style:normal;border-radius:4px;
   font-family:"JetBrains Mono",monospace;font-size:.6rem;font-weight:700;color:var(--ink-3);
+  transition:background .18s, color .18s;
 }
+/* 目前玩家所在的行與列，在座標軸上標出來 */
+.colhdr i.hit,.rowhdr i.hit{ background:var(--gold); color:var(--ground); }
 .board{
   position:relative; display:grid; gap:0;
   grid-template-columns:repeat(var(--cols),1fr);
@@ -286,6 +289,12 @@ button{font:inherit;color:inherit;cursor:pointer}
   border-radius:5px 5px 5px 12px;
 }
 
+/* 目前玩家腳下的格子 */
+.cell.cur .pad{
+  background:color-mix(in srgb, var(--gold) 26%, var(--pad));
+  border-color:var(--gold); border-width:2px;
+}
+
 .res{
   display:inline-block; vertical-align:middle;
   width:var(--rw,22px); height:var(--rw,22px); line-height:var(--rw,22px);
@@ -324,7 +333,25 @@ button{font:inherit;color:inherit;cursor:pointer}
   border-bottom:calc(var(--u) * .13) solid rgba(255,255,255,.95);
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));
 }
-.robot.active .body{box-shadow:0 3px 0 rgba(0,0,0,.28), 0 0 0 4px color-mix(in srgb,var(--pc) 35%, transparent)}
+/* 目前玩家：白圈＋金圈的靜態高亮，任何格子底色與玩家顏色上都看得出來 */
+.robot.active .body{
+  border-color:#fff;
+  box-shadow:0 3px 0 rgba(0,0,0,.35),
+             0 0 0 3px #fff,
+             0 0 0 6px var(--gold),
+             0 0 0 8px rgba(0,0,0,.45);
+}
+/* 往外擴散的脈動環，讓人一眼掃到位置 */
+.robot .halo{
+  position:absolute; inset:8%; border-radius:11px;
+  border:3px solid var(--gold); opacity:0; pointer-events:none;
+}
+.robot.active .halo{ opacity:1; animation:ping 1.7s cubic-bezier(.2,.6,.4,1) infinite; }
+@keyframes ping{
+  0%  { transform:scale(1);    opacity:.95 }
+  70% { transform:scale(1.55); opacity:0 }
+  100%{ transform:scale(1.55); opacity:0 }
+}
 .cell.pick{cursor:pointer}
 .cell.pick .pad{box-shadow:inset 0 0 0 2px var(--gold); border-color:var(--gold)}
 .cell.pick:hover .pad{background:color-mix(in srgb,var(--gold) 40%, var(--pad)); transform:scale(1.06)}
@@ -631,6 +658,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
       <span class="eyebrow" id="roundLbl">ROUND 1</span>
       <span class="dot" id="turnDot">1</span>
       <b id="turnName">—</b>
+      <span class="eyebrow" id="turnPos"></span>
       <span class="eyebrow" id="phaseLbl">排程中</span>
     </div>
     <div class="meter">
@@ -1136,7 +1164,7 @@ function buildBoardDOM(){
   G.robotEls = G.players.map(p=>{
     const d = el("div","robot");
     d.style.setProperty("--pc", p.color);
-    d.innerHTML = `<div class="body">${p.id+1}</div><div class="rot"><span class="nose"></span></div>`;
+    d.innerHTML = `<div class="halo"></div><div class="body">${p.id+1}</div><div class="rot"><span class="nose"></span></div>`;
     layer.appendChild(d);
     return d;
   });
@@ -1177,7 +1205,8 @@ if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitBoard);
 function paintCell(r,c,node){
   const cell = G.board.cells[r][c];
   const d = node || G.cellEls[r][c];
-  d.className = "cell " + (cell.type==="wall"?"wall":cell.type==="cpu"?"cpu":cell.type==="tunnel"?"tunnel":"");
+  const keepCur = d.classList.contains("cur") ? " cur" : "";
+  d.className = "cell " + (cell.type==="wall"?"wall":cell.type==="cpu"?"cpu":cell.type==="tunnel"?"tunnel":"") + keepCur;
   const mark = d.children[1];
   if(cell.res){
     mark.className = "mark";
@@ -1200,6 +1229,16 @@ function paintRobots(){
     d.classList.toggle("active", i===G.cur);
     d.querySelector(".rot").style.transform = `rotate(${p.dir*90}deg)`;
   });
+  // 目前玩家腳下的格子
+  const me = G.players[G.cur];
+  if(G.curCell) G.curCell.classList.remove("cur");
+  G.curCell = G.cellEls[me.r] && G.cellEls[me.r][me.c];
+  if(G.curCell) G.curCell.classList.add("cur");
+
+  // 座標軸上標出目前玩家的行與列
+  const ch = $("#colhdr").children, rh = $("#rowhdr").children;
+  for(let i=0;i<ch.length;i++) ch[i].classList.toggle("hit", i===me.c);
+  for(let i=0;i<rh.length;i++) rh[i].classList.toggle("hit", i===me.r);
 }
 
 /* =======================================================================
@@ -1228,6 +1267,8 @@ function renderTop(){
   $("#roundLbl").textContent = "ROUND " + G.round;
   const dot = $("#turnDot"); dot.textContent = p.id+1; dot.style.background = p.color;
   $("#turnName").textContent = p.name;
+  $("#turnPos").textContent = coord(p.r, p.c);
+  $("#turnPos").style.color = "var(--gold)";
   $("#phaseLbl").textContent = G.phase==="program" ? "排程中" : G.phase==="run" ? "執行中" : "整理中";
 
   if(cfg.endMode === "res"){
