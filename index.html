@@ -559,6 +559,51 @@ button{font:inherit;color:inherit;cursor:pointer}
 .rangerow input[type=range]{flex:1;accent-color:var(--teal)}
 .rangerow output{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1rem;min-width:2.2rem;text-align:right}
 
+/* 模式選擇 */
+.modepick{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:.7rem;margin-bottom:1.2rem}
+.modepick button{
+  min-width:0;text-align:left;border:1px solid var(--line);background:var(--panel-2);
+  border-radius:14px;padding:.85rem 1rem;transition:.15s;display:grid;gap:.15rem;
+}
+.modepick button:hover{border-color:var(--ink-3)}
+.modepick button[aria-pressed="true"]{
+  border-color:var(--teal);background:color-mix(in srgb,var(--teal) 14%, var(--panel-2));
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--teal) 30%, transparent);
+}
+.modepick b{font-size:1rem;font-weight:900;color:var(--ink)}
+.modepick span{font-size:.76rem;color:var(--ink-3);line-height:1.4;overflow-wrap:anywhere}
+.modepick button[aria-pressed="true"] b{color:var(--teal)}
+
+/* 回合計時器 */
+.timer{
+  display:none;align-items:center;gap:.4rem;margin-left:.4rem;
+  padding:.22rem .6rem;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);
+}
+.timer.on{display:flex}
+.timer b{font-family:"JetBrains Mono",monospace;font-size:.95rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.timer .tdot{width:.5rem;height:.5rem;border-radius:99px;background:var(--teal);flex:none}
+.timer.warn{border-color:var(--gold)}
+.timer.warn b{color:var(--gold)} .timer.warn .tdot{background:var(--gold)}
+.timer.crit{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 16%, var(--panel-2))}
+.timer.crit b{color:var(--danger)} .timer.crit .tdot{background:var(--danger);animation:blip .7s infinite}
+@keyframes blip{50%{opacity:.15}}
+.timer.paused{opacity:.5}
+
+/* 單人挑戰結算 */
+.stars{display:flex;gap:.3rem;font-size:2.4rem;line-height:1}
+.stars i{font-style:normal;color:var(--line)}
+.stars i.on{color:var(--gold)}
+.soloscore{
+  display:flex;align-items:baseline;gap:.6rem;font-family:"JetBrains Mono",monospace;
+  font-size:3.2rem;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.soloscore small{font-family:"Noto Sans TC",sans-serif;font-size:1rem;font-weight:700;color:var(--ink-3)}
+.pbchip{
+  display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .7rem;border-radius:999px;
+  background:color-mix(in srgb,var(--gold) 16%, transparent);border:1px solid color-mix(in srgb,var(--gold) 45%, transparent);
+  font-size:.85rem;font-weight:700;color:var(--gold);
+}
+
 table.ref{width:100%;border-collapse:collapse;font-size:.82rem}
 table.ref th,table.ref td{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line-soft)}
 table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
@@ -598,14 +643,21 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
       <p>用「循序、選擇、重複、副程式」四種程式結構，指揮機器人在電路板城市上搶資源、蓋建築。一台電腦接大螢幕，2～7 位學生輪流上台出牌。</p>
     </div>
 
+    <div class="modepick" id="modepick"></div>
+
     <div class="grid2">
       <div class="gbox">
-        <div class="field">
+        <div class="field" id="fieldPlayers">
           <label>玩家（2～7 人）</label>
           <div class="hint">人少的時候建議搭配小地圖或調低資源密度，不然要跑很久才碰得到彼此。</div>
           <div class="seg" id="segCount"></div>
-          <div id="names" style="margin-top:.5rem"></div>
         </div>
+        <div class="field" id="fieldRounds">
+          <label>挑戰回合數</label>
+          <div class="hint">在這麼多回合內，盡量拿到高分。回合用完就結算。</div>
+          <div class="seg" id="segRounds"></div>
+        </div>
+        <div id="names" style="margin-top:.5rem"></div>
       </div>
 
       <div class="gbox">
@@ -632,9 +684,14 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
             <output id="outScore">8</output>
           </div>
         </div>
-        <div class="field">
+        <div class="field" id="fieldEnd">
           <label>結束條件</label>
           <div class="seg" id="segEnd"></div>
+        </div>
+        <div class="field">
+          <label>每回合時間限制</label>
+          <div class="seg" id="segTime"></div>
+          <div class="hint">時間到會強制結束回合：還沒按「執行」的指令不會動作，正在執行的動作會做完。</div>
         </div>
         <div class="field">
           <label>程式區格數（每回合最多出幾張）</label>
@@ -674,6 +731,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
       <span class="eyebrow" id="turnPos"></span>
       <span class="eyebrow" id="phaseLbl">排程中</span>
     </div>
+    <span class="timer" id="timer"><span class="tdot"></span><b id="timerVal">—</b></span>
     <div class="meter">
       <span class="eyebrow" id="meterLbl"></span>
       <span class="bar"><i id="meterBar" style="width:0%"></i></span>
@@ -894,12 +952,18 @@ const ENDMODE = {
   score:{lbl:"積分達標"}, res:{lbl:"資源搶光"}, both:{lbl:"兩者先到"}
 };
 
+const TIMES = {no:{lbl:"不限",v:0}, s30:{lbl:"30 秒",v:30}, s45:{lbl:"45 秒",v:45}, s60:{lbl:"60 秒",v:60}};
+
 const cfg = {
+  mode:"versus",                 // versus 多人對戰 / solo 單人練習
   count:6, names:DEFAULT_NAMES.slice(),
   map:"mid", density:"mid", missions:2, target:8,
   endMode:"both", slots:6, speed:"mid",
+  rounds:10,                     // 單人挑戰回合數
+  time:"no",                     // 每回合時間限制
   enable:{white:true, yellow:true, green:true, red:true},
 };
+const limitSec = ()=>TIMES[cfg.time].v;
 
 function seg(hostSel, obj, key, onPick){
   const host = $(hostSel); host.innerHTML="";
@@ -950,19 +1014,47 @@ function renderToggles(){
 function summarize(){
   const m = MAPS[cfg.map];
   const on = TOGGLE_DEFS.filter(d=>cfg.enable[d.k]).length;
-  $("#setupSummary").textContent =
-    `${cfg.count} 人 · ${m.rows}×${m.cols} · 目標 ${cfg.target} 分 · ${ENDMODE[cfg.endMode].lbl} · ${on}/4 種卡`;
+  const t = limitSec() ? ` · 每回合 ${limitSec()} 秒` : "";
+  $("#setupSummary").textContent = cfg.mode === "solo"
+    ? `單人練習 · ${m.rows}×${m.cols} · ${cfg.rounds} 回合 · 目標 ${cfg.target} 分${t} · ${on}/4 種卡`
+    : `${cfg.count} 人 · ${m.rows}×${m.cols} · 目標 ${cfg.target} 分 · ${ENDMODE[cfg.endMode].lbl}${t} · ${on}/4 種卡`;
 }
+const MODES = [
+  {k:"solo",   t:"單人練習",   d:"一個人挑戰。在限定回合內盡量拿分，結束時給星等評價並記錄最佳成績。適合第一次接觸，先搞懂規則再上場。"},
+  {k:"versus", t:"多人對戰",   d:"2～7 人輪流出牌，搶同一張地圖上的資源。"},
+];
+function renderModes(){
+  const host = $("#modepick"); host.innerHTML = "";
+  MODES.forEach(m=>{
+    const b = el("button","");
+    b.setAttribute("aria-pressed", String(cfg.mode===m.k));
+    b.innerHTML = `<b>${m.t}</b><span>${m.d}</span>`;
+    b.onclick = ()=>{ cfg.mode = m.k; applyMode(); };
+    host.appendChild(b);
+  });
+}
+function applyMode(){
+  const solo = cfg.mode === "solo";
+  $("#fieldPlayers").style.display = solo ? "none" : "";
+  $("#fieldRounds").style.display  = solo ? "" : "none";
+  $("#fieldEnd").style.display     = solo ? "none" : "";
+  if(solo && cfg.count !== 1){ cfg.prevCount = cfg.count; cfg.count = 1; }
+  if(!solo && cfg.count === 1) cfg.count = cfg.prevCount || 6;
+  renderModes(); renderNames(); summarize();
+}
+
 function initSetup(){
   document.documentElement.lang = "zh-Hant";   // 讓瀏覽器用中文的斷行規則
   segNum("#segCount",[2,3,4,5,6,7],"count",v=>v+" 人",()=>{renderNames();summarize();});
+  segNum("#segRounds",[6,10,15],"rounds",v=>v+" 回合",summarize);
+  seg("#segTime",TIMES,"time");
   seg("#segMap",MAPS,"map",summarize);
   seg("#segDensity",DENSITY,"density",summarize);
   segNum("#segMissions",[2,3],"missions",v=>v+" 張");
   seg("#segEnd",ENDMODE,"endMode",summarize);
   segNum("#segSlots",[4,5,6],"slots",v=>v+" 格");
   seg("#segSpeed",SPEEDS,"speed");
-  renderNames(); renderToggles(); summarize();
+  renderNames(); renderToggles(); renderModes(); applyMode();
   const rng = $("#rngScore");
   rng.oninput = ()=>{ cfg.target = +rng.value; $("#outScore").textContent = rng.value; summarize(); };
   $("#btnStart").onclick = startGame;
@@ -982,6 +1074,8 @@ function buildDeck(){
              : (c.g==="green")  ? cfg.enable.green
              : cfg.enable.red;             // orange + red 同一組
     if(!on) return;
+    // 單人練習時，交換卡與病毒沒有對手可指定，不放進牌堆
+    if(cfg.mode === "solo" && (c.id === "r_sw" || c.id === "r_vr")) return;
     for(let i=0;i<c.n;i++) pool.push(c.id);
   });
   // 牌數不足時整副再疊一次，確保 7 人 ×8 張補得動
@@ -1088,7 +1182,63 @@ function startGame(){
   $("#app").classList.add("on");
   buildBoardDOM();
   applyUI();
-  chooseDirection();
+  if(cfg.mode === "solo") soloBrief(); else chooseDirection();
+}
+
+/* --- 單人練習：星等、最佳紀錄、開場說明 --- */
+function soloStars(score){
+  const t = cfg.target;
+  return score >= t ? 3 : score >= Math.ceil(t*0.75) ? 2 : score >= Math.ceil(t*0.4) ? 1 : 0;
+}
+const soloKey = ()=>`robotcity_solo_${cfg.map}_${cfg.rounds}_${cfg.density}_${cfg.target}`;
+function soloBest(){ try{ return +localStorage.getItem(soloKey()) || 0; }catch(e){ return 0; } }
+function soloSaveBest(v){ try{ if(v > soloBest()) localStorage.setItem(soloKey(), String(v)); }catch(e){} }
+
+function soloBrief(){
+  const p = G.players[0];
+  const best = soloBest();
+  openSheet(`
+    <h2>單人挑戰</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0;max-width:60ch">
+      你有 <b class="mono">${cfg.rounds}</b> 個回合。每回合排好指令、按執行，讓機器人去撿資源，
+      把資源放上任務卡蓋出建築。回合用完（或地圖上的資源被撿光）就結算。
+    </p>
+    <h3>這次的目標</h3>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      <span class="pbchip">★ 一顆星 ${Math.ceil(cfg.target*0.4)} 分</span>
+      <span class="pbchip">★★ 兩顆星 ${Math.ceil(cfg.target*0.75)} 分</span>
+      <span class="pbchip">★★★ 三顆星 ${cfg.target} 分</span>
+      ${best ? `<span style="color:var(--ink-3);font-size:.85rem;margin-left:.3rem">目前最佳紀錄 <b class="mono" style="color:var(--gold)">${best}</b> 分</span>` : ""}
+    </div>
+    <h3>三個提醒</h3>
+    <table class="ref">
+      <tr><th style="width:7rem">走過就撿走</th><td>機器人經過的每一格，只要有資源就會自動撿起來——路線規劃得好，一回合可以撿好幾個。</td></tr>
+      <tr><th>放上任務卡</th><td>暫存卡上的資源<b style="color:var(--danger)">結算不計分</b>。撿到就盡量放上任務卡，就算沒蓋完，每個也算 1 分。</td></tr>
+      <tr><th>看上方橫幅</th><td>不知道現在能做什麼的時候，看畫面最上方那一條，它會一直告訴你。</td></tr>
+    </table>
+    <h3>機器人的起始面向</h3>
+    <div style="display:flex;align-items:center;gap:.6rem">
+      <span class="av" style="background:${p.color};width:1.6rem;height:1.6rem;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.75rem;flex:none">1</span>
+      <b style="font-size:.85rem;min-width:5rem">${p.name}</b>
+      <span class="mono" style="font-size:.7rem;color:var(--ink-3);min-width:2.2rem">${coord(p.r,p.c)}</span>
+      <span class="seg" data-face="0">
+        ${["↑ 上","→ 右","↓ 下","← 左"].map((t,d)=>`<button data-dir="${d}" aria-pressed="${d===p.dir}">${t}</button>`).join("")}
+      </span>
+    </div>
+    <div style="margin-top:1.3rem"><button class="btn primary big" data-go="1">開始挑戰 ▶</button></div>
+  `, (sheet)=>{
+    const seg = sheet.querySelector("[data-face]");
+    seg.querySelectorAll("[data-dir]").forEach(b=>b.onclick=()=>{
+      p.dir = +b.dataset.dir;
+      seg.querySelectorAll("[data-dir]").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+      paintRobots();
+    });
+    sheet.querySelector("[data-go]").onclick = ()=>{
+      closeSheet();
+      logLine(`<b>單人挑戰</b> 開始 · 共 ${cfg.rounds} 回合 · 目標 ${cfg.target} 分`, "y");
+      beginTurn();
+    };
+  });
 }
 
 /* 由任務卡總積分最低者，決定順時針或逆時針 */
@@ -1258,6 +1408,65 @@ function paintRobots(){
 }
 
 /* =======================================================================
+   5b. 每回合時間限制
+   ======================================================================= */
+function startTurnTimer(){
+  stopTurnTimer();
+  G.timeUp = false;
+  const el = $("#timer");
+  if(!limitSec()){ el.className = "timer"; return; }
+  el.className = "timer on";
+  G.timerEndsAt = Date.now() + limitSec()*1000;
+  G.timerId = setInterval(tickTimer, 200);
+  tickTimer();
+}
+function stopTurnTimer(){
+  if(G.timerId) clearInterval(G.timerId);
+  G.timerId = null; G.timerPaused = false;
+}
+function pauseTimer(){
+  if(!limitSec() || G.timerPaused || G.timeUp || !G.timerId) return;
+  G.timerPaused = true;
+  G.timerLeft = G.timerEndsAt - Date.now();
+  $("#timer").classList.add("paused");
+}
+function resumeTimer(){
+  if(!G.timerPaused) return;
+  G.timerPaused = false;
+  G.timerEndsAt = Date.now() + G.timerLeft;
+  $("#timer").classList.remove("paused");
+}
+function tickTimer(){
+  if(G.timerPaused || G.over) return;
+  const left = Math.max(0, G.timerEndsAt - Date.now());
+  const sec = Math.ceil(left/1000);
+  const el = $("#timer");
+  $("#timerVal").textContent = `${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`;
+  el.classList.toggle("warn", sec <= 15 && sec > 5);
+  el.classList.toggle("crit", sec <= 5);
+  if(left <= 0 && !G.timeUp){ G.timeUp = true; onTimeUp(); }
+}
+/* 時間到：未執行的指令不動作，正在執行的動作會做完 */
+function onTimeUp(){
+  stopTurnTimer();
+  banner("時間到，強制結束回合", "bad");
+  logLine("⏱ 時間到 — 強制結束回合", "r");
+  if(G.phase === "program"){
+    if(G.program.length) logLine(`程式區的 ${G.program.length} 張指令沒有執行，留在手上`, "r");
+    G.program = [];
+    G.phase = "tidy";
+    renderAll();
+    endTurn();
+  }else if(G.phase === "allot"){
+    const auto = document.querySelector('#ovSheet [data-auto]');
+    if(auto) auto.click();          // 剩下的資源自動分配，runProgram 收尾時會結束回合
+  }else if(G.phase === "tidy"){
+    endTurn();
+  }
+  // phase === "run"：runSeq 會在目前這張卡做完後自行停下
+}
+
+/* =======================================================================
    6. 回合流程與介面渲染
    ======================================================================= */
 function P(){ return G.players[G.cur]; }
@@ -1273,21 +1482,27 @@ function beginTurn(){
   const p = P();
   logLine(`— <b>${p.name}</b> 的回合 · 位置 <b>${coord(p.r,p.c)}</b> · 面向 <b>${DIRNAME[p.dir]}</b> —`);
   renderAll();
-  banner(`輪到 ${p.name}`);
+  startTurnTimer();
+  banner(cfg.mode === "solo" ? `第 ${G.turns+1} / ${cfg.rounds} 回合` : `輪到 ${p.name}`);
 }
 
 function renderAll(){ renderTop(); renderProgram(); renderHand(); renderRail(); paintRobots(); }
 
 function renderTop(){
   const p = P();
-  $("#roundLbl").textContent = "ROUND " + G.round;
+  $("#roundLbl").textContent = cfg.mode === "solo"
+    ? `ROUND ${Math.min(G.turns+1, cfg.rounds)} / ${cfg.rounds}`
+    : "ROUND " + G.round;
   const dot = $("#turnDot"); dot.textContent = p.id+1; dot.style.background = p.color;
   $("#turnName").textContent = p.name;
   $("#turnPos").textContent = coord(p.r, p.c);
   $("#turnPos").style.color = "var(--gold)";
   $("#phaseLbl").textContent = G.phase==="program" ? "排程中" : G.phase==="run" ? "執行中" : "整理中";
 
-  if(cfg.endMode === "res"){
+  if(cfg.mode === "solo"){
+    $("#meterLbl").textContent = `${P().score} / ${cfg.target} 分`;
+    $("#meterBar").style.width = Math.min(100, P().score/cfg.target*100) + "%";
+  }else if(cfg.endMode === "res"){
     const left = countRes();
     $("#meterLbl").textContent = `場上資源 ${left}`;
     $("#meterBar").style.width = (100 - left/Math.max(1,G.startRes||left)*100) + "%";
@@ -1557,6 +1772,10 @@ function hi(i){
 async function runSeq(prog, p, base){
   let i = 0;
   while(i < prog.length){
+    if(G.timeUp){                      // 目前這張卡已做完，其餘不再執行
+      logLine("時間到，後面的指令不再執行", "r");
+      return;
+    }
     const id = prog[i], c = CARDMAP[id];
     hi(base + i);
     await sleep(SPD()*0.25);
@@ -1780,6 +1999,9 @@ function allocate(){
   return new Promise(resolve=>{
     const p = P();
     const step = ()=>{
+      if(G.timeUp){                     // 時間到 → 剩下的自動分配
+        while(G.pending.length){ const kk = G.pending.shift(); place(p, kk, autoTarget(p, kk)); }
+      }
       if(!G.pending.length){ closeSheet(); renderRail(); renderTop(); resolve(); return; }
       const k = G.pending[0];
       const opts = p.missions.map((m,i)=>{
@@ -1884,14 +2106,16 @@ async function runProgram(){
   if(G.pending.length){ G.phase = "allot"; renderTop(); await allocate(); }
   G.phase = "tidy";
   renderAll();
+  if(G.timeUp){ if(!checkEnd()) endTurn(); return; }
   if(!checkEnd()) banner("可以 2 換 1、選擇棄牌，然後結束回合");
 }
 
 function endTurn(){
   if(G.running) return;
-  if(G.phase === "program" && G.program.length){
+  if(!G.timeUp && G.phase === "program" && G.program.length){
     banner("程式區還有卡片沒執行，先按「執行 ▶」","bad"); return;
   }
+  stopTurnTimer();
   const p = P();
   // 1) 先依原始索引丟掉手動選取的棄牌
   [...G.discardSel].sort((a,b)=>b-a).forEach(i=>{
@@ -1920,6 +2144,12 @@ function endTurn(){
 
 function checkEnd(){
   if(G.over) return true;
+  if(cfg.mode === "solo"){
+    if(G.turns < cfg.rounds && countRes() > 0) return false;
+    G.over = true; stopTurnTimer();
+    finalScoreSolo(countRes() === 0 && G.turns < cfg.rounds);
+    return true;
+  }
   const byScore = G.players.some(p=>p.score >= cfg.target);
   const byRes = countRes() === 0;
   const hit = cfg.endMode==="score" ? byScore
@@ -1929,6 +2159,44 @@ function checkEnd(){
   G.over = true;
   finalScore(byScore && (cfg.endMode!=="res") ? "score" : "res");
   return true;
+}
+
+function finalScoreSolo(clearedBoard){
+  const p = G.players[0];
+  const leftover = p.missions.reduce((s,m)=>s + RESKEYS.reduce((t,k)=>t+m.have[k],0), 0);
+  const total = p.score + leftover;
+  const stars = soloStars(total);
+  const prev = soloBest();
+  const isPB = total > prev;
+  soloSaveBest(total);
+  const next = stars === 3 ? "已經滿星了。想再拚一次，可以把目標積分調高，或換大一點的地圖。"
+    : `再 <b class="mono">${(stars===0?Math.ceil(cfg.target*0.4):stars===1?Math.ceil(cfg.target*0.75):cfg.target) - total}</b> 分就能拿到下一顆星。`;
+  openSheet(`
+    <h2>挑戰結束</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0">
+      ${clearedBoard ? "地圖上的資源被你撿光了！" : `${cfg.rounds} 個回合跑完了。`}
+    </p>
+    <div style="display:flex;align-items:center;gap:1.6rem;flex-wrap:wrap;margin:1.2rem 0 .2rem">
+      <div class="stars">${[0,1,2].map(i=>`<i class="${i<stars?"on":""}">★</i>`).join("")}</div>
+      <div class="soloscore">${total}<small>分</small></div>
+      ${isPB ? `<span class="pbchip">🏆 新紀錄！上次最佳 ${prev} 分</span>`
+             : (prev ? `<span style="color:var(--ink-3);font-size:.85rem">最佳紀錄 <b class="mono" style="color:var(--gold)">${prev}</b> 分</span>` : "")}
+    </div>
+    <p style="color:var(--ink-2);margin:.6rem 0 0">${next}</p>
+    <h3>分數是這樣來的</h3>
+    <table class="ref">
+      <tr><th style="width:9rem">蓋好的建築</th><td>${p.built.length ? p.built.map(b=>`${b.nm}（${b.pts} 分）`).join("、") : "還沒蓋好任何一棟"} — 共 <b>${p.score}</b> 分</td></tr>
+      <tr><th>任務卡上的資源</th><td>還沒蓋完，但已經放上去的資源 <b>${leftover}</b> 個，每個 1 分 — 共 <b>${leftover}</b> 分</td></tr>
+      <tr><th>暫存卡</th><td>${RESKEYS.reduce((t,k)=>t+p.buffer[k],0)} 個資源，<b style="color:var(--danger)">不計分</b></td></tr>
+    </table>
+    <div style="display:flex;gap:.6rem;margin-top:1.3rem;flex-wrap:wrap">
+      <button class="btn primary big" data-again="1">再挑戰一次</button>
+      <button class="btn ghost" data-look="1">看一下最後的地圖</button>
+    </div>
+  `, (sh)=>{
+    sh.querySelector("[data-again]").onclick = ()=>location.reload();
+    sh.querySelector("[data-look]").onclick = ()=>{ closeSheet(); banner("按上方「結束遊戲」可以再看一次結算"); };
+  });
 }
 
 function finalScore(reason){
@@ -2007,6 +2275,10 @@ function showRules(){
     <p style="color:var(--ink-2);font-size:.84rem;margin:.6rem 0 0">
       最上方的<b>回合引導</b>會一直告訴你「現在輪到誰、可以做什麼」，並在紅卡沒被橘卡夾住時出聲提醒。
     </p>
+    ${limitSec() ? `<p style="color:var(--ink-2);font-size:.84rem;margin:.5rem 0 0">
+      本場<b style="color:var(--gold)">每回合限時 ${limitSec()} 秒</b>，倒數顯示在最上方。時間到會強制結束回合：
+      還沒按「執行」的指令<b>不會動作</b>，正在執行的動作<b>會做完</b>，撿到的資源自動分配。
+      看規則的時候計時會暫停。</p>` : ""}
 
     <h3>看得到什麼</h3>
     <table class="ref">
@@ -2043,13 +2315,15 @@ function showRules(){
 
     <h3>怎麼結束、怎麼算分</h3>
     <table class="ref">
-      <tr><th style="width:6rem">本場條件</th><td>${ENDMODE[cfg.endMode].lbl}${cfg.endMode!=="res"?`（目標 ${cfg.target} 分）`:""}</td></tr>
+      <tr><th style="width:6rem">本場條件</th><td>${cfg.mode==="solo"
+        ? `單人挑戰 · 共 ${cfg.rounds} 回合，目標 ${cfg.target} 分（回合用完或資源被撿光就結算，並給星等）`
+        : ENDMODE[cfg.endMode].lbl + (cfg.endMode!=="res" ? `（目標 ${cfg.target} 分）` : "")}</td></tr>
       <tr><th>完成的建築</th><td>拿任務卡上的完整積分。</td></tr>
       <tr><th>未完成的任務卡</th><td>上面已收集的資源，每個算 1 分。</td></tr>
       <tr><th>暫存卡</th><td><b style="color:var(--danger)">不計分。</b>所以別囤太多，記得 2 換 1 換成需要的資源。</td></tr>
     </table>
     <div style="margin-top:1.2rem"><button class="btn primary big" data-close="1">知道了</button></div>
-  `, (sh)=>{ sh.querySelector("[data-close]").onclick = closeSheet; });
+  `, (sh)=>{ sh.querySelector("[data-close]").onclick = ()=>{ closeSheet(); resumeTimer(); }; });
 }
 
 /* =======================================================================
@@ -2106,21 +2380,29 @@ function wire(){
   $("#btnClear").onclick = ()=>{ if(G.phase!=="program") return; G.program=[]; renderProgram(); renderHand(); };
   $("#btnEnd").onclick = endTurn;
   $("#btnSwap").onclick = ()=>{ if(!G.running) doSwap2for1(); };
-  $("#btnRules").onclick = showRules;
+  $("#btnRules").onclick = ()=>{ pauseTimer(); showRules(); };
   $("#btnDiscardMode").onclick = ()=>{
     if(G.running) return;
     G.discardMode = !G.discardMode;
     renderHand();
   };
   $("#btnQuit").onclick = ()=>{
-    if(G.over){ finalScore(countRes()===0 ? "res" : "score"); return; }
+    if(G.over){
+      if(cfg.mode === "solo") finalScoreSolo(countRes()===0);
+      else finalScore(countRes()===0 ? "res" : "score");
+      return;
+    }
+    pauseTimer();
     openSheet(`<h2>要現在結束遊戲嗎？</h2>
       <p style="color:var(--ink-2);margin:.3rem 0 0">會直接進入結算，把目前的分數算出來。</p>
       <div style="display:flex;gap:.6rem;margin-top:1.1rem">
         <button class="btn warn big" data-yes="1">結束並結算</button>
         <button class="btn ghost big" data-no="1">繼續玩</button></div>`, (sh)=>{
-      sh.querySelector("[data-yes]").onclick = ()=>{ G.over=true; finalScore("score"); };
-      sh.querySelector("[data-no]").onclick = closeSheet;
+      sh.querySelector("[data-yes]").onclick = ()=>{
+        G.over = true; stopTurnTimer();
+        if(cfg.mode === "solo") finalScoreSolo(false); else finalScore("score");
+      };
+      sh.querySelector("[data-no]").onclick = ()=>{ closeSheet(); resumeTimer(); };
     });
   };
 }
