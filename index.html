@@ -248,46 +248,53 @@ button{font:inherit;color:inherit;cursor:pointer}
   grid-template-columns:repeat(var(--cols),1fr);
   grid-template-rows:repeat(var(--rows),1fr);
   width:100%; height:100%; min-width:0; min-height:0;
-  --u:32px;                              /* 由 fitBoard() 換成實際格子邊長 */
+  /* 以下由 fitBoard() 換成實際格子邊長；這裡是版面尚未算好時的後備值 */
+  --u:32px; --rw:20px; --rf:12px; --lf:8px;
 }
 .cell{padding:2px; position:relative}
 .pad{
   width:100%;height:100%;border-radius:5px;
   background:var(--pad); border:1px solid var(--pad-edge);
-  display:grid; place-items:center; position:relative; transition:.2s;
+  transition:.2s;
 }
+/* 格子上的字與資源圖示：絕對定位疊在格子上，不靠 grid/aspect-ratio/偽元素 */
+.mark{
+  position:absolute; left:0; right:0; top:50%;
+  transform:translateY(-50%); text-align:center;
+  pointer-events:none; line-height:1;
+}
+.mark.lab{
+  font-family:"JetBrains Mono",monospace; font-weight:700;
+  font-size:var(--lf,10px); letter-spacing:.04em;
+}
+.mark.lab.w{color:var(--chip-ink)}
+.mark.lab.t{color:var(--teal)}
+.mark.lab.c{color:var(--gold); opacity:.8; top:auto; bottom:6%; transform:none}
 .cell.wall .pad{
   background:var(--chip); border-color:color-mix(in srgb,var(--chip) 70%, #fff 12%);
   border-radius:3px;
   box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--chip) 80%, #fff 8%);
 }
-.cell.wall .pad::after{
-  content:attr(data-lab); font-family:"JetBrains Mono",monospace; font-weight:700;
-  font-size:calc(var(--u) * .23); color:var(--chip-ink); letter-spacing:.04em;
-}
+
 .cell.cpu .pad{
   background:transparent; border:1px dashed color-mix(in srgb,var(--gold) 65%, transparent);
 }
-.cell.cpu .pad::before{
-  content:"CPU"; position:absolute; bottom:3%; font-family:"JetBrains Mono",monospace;
-  font-size:calc(var(--u) * .18); font-weight:700; color:var(--gold); opacity:.8;
-}
+
 .cell.tunnel .pad{
   background:color-mix(in srgb,var(--teal) 18%, var(--pad));
   border-color:var(--teal);
   border-radius:5px 5px 5px 12px;
 }
-.cell.tunnel .pad::after{
-  content:"SIM " attr(data-t); font-family:"JetBrains Mono",monospace; font-weight:700;
-  font-size:calc(var(--u) * .18); color:var(--teal);
-}
+
 .res{
-  width:66%; aspect-ratio:1; border-radius:7px; display:grid; place-items:center;
-  color:#fff; font-weight:900; font-size:calc(var(--u) * .36);
+  display:inline-block; vertical-align:middle;
+  width:var(--rw,22px); height:var(--rw,22px); line-height:var(--rw,22px);
+  border-radius:7px; color:#fff; font-weight:900; font-size:var(--rf,12px);
   box-shadow:0 2px 0 rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.3);
   animation:pop .25s cubic-bezier(.34,1.5,.5,1);
 }
-@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+/* 只縮放不改透明度：萬一動畫被系統設定凍在起始影格，圖示仍然看得見 */
+@keyframes pop{from{transform:scale(.55)}to{transform:scale(1)}}
 .res.wood{background:var(--r-wood)} .res.iron{background:var(--r-iron)}
 .res.stone{background:var(--r-stone)} .res.sand{background:var(--r-sand)}
 
@@ -1115,6 +1122,7 @@ function buildBoardDOM(){
     for(let c=0;c<cols;c++){
       const d = el("div","cell");
       d.appendChild(el("div","pad"));
+      d.appendChild(el("span","mark"));
       d.dataset.r=r; d.dataset.c=c;
       board.insertBefore(d, layer);
       row.push(d);
@@ -1149,8 +1157,12 @@ function fitBoard(){
   const cell = Math.max(10, Math.floor(Math.min((availW-GUTTER)/cols, (availH-GUTTER)/rows)));
   frame.style.width  = (cell*cols + GUTTER) + "px";
   frame.style.height = (cell*rows + GUTTER) + "px";
-  // 格子裡的字級、機器人箭頭都依這個實際邊長縮放
-  $("#board").style.setProperty("--u", cell + "px");
+  // 格子裡的字級、圖示大小、機器人箭頭都依這個實際邊長縮放（全部給純 px，避免 calc 失效）
+  const bd = $("#board");
+  bd.style.setProperty("--u",  cell + "px");
+  bd.style.setProperty("--rw", Math.round(cell * 0.62) + "px");
+  bd.style.setProperty("--rf", Math.round(cell * 0.36) + "px");
+  bd.style.setProperty("--lf", Math.max(7, Math.round(cell * 0.21)) + "px");
 }
 /* 面板尺寸只要變動就重算：換視窗、縮放、字型載入、引導列換行、面板收合都涵蓋。
    直接呼叫而不排進 requestAnimationFrame——背景分頁不會跑 rAF，會留下舊尺寸。 */
@@ -1166,10 +1178,19 @@ function paintCell(r,c,node){
   const cell = G.board.cells[r][c];
   const d = node || G.cellEls[r][c];
   d.className = "cell " + (cell.type==="wall"?"wall":cell.type==="cpu"?"cpu":cell.type==="tunnel"?"tunnel":"");
-  const pad = d.firstChild;
-  pad.dataset.lab = cell.wall || "";
-  pad.dataset.t = cell.tunnel || "";
-  pad.innerHTML = cell.res ? `<span class="res ${cell.res}">${RES[cell.res].ch}</span>` : "";
+  const mark = d.children[1];
+  if(cell.res){
+    mark.className = "mark";
+    mark.innerHTML = `<span class="res ${cell.res}">${RES[cell.res].ch}</span>`;
+  }else if(cell.type === "wall"){
+    mark.className = "mark lab w"; mark.textContent = cell.wall || "";
+  }else if(cell.type === "tunnel"){
+    mark.className = "mark lab t"; mark.textContent = "SIM " + cell.tunnel;
+  }else if(cell.type === "cpu"){
+    mark.className = "mark lab c"; mark.textContent = "CPU";
+  }else{
+    mark.className = "mark"; mark.textContent = "";
+  }
 }
 function paintRobots(){
   G.players.forEach((p,i)=>{
