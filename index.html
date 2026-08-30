@@ -513,15 +513,26 @@ button{font:inherit;color:inherit;cursor:pointer}
 .hero .big{font-family:"Bungee",sans-serif;font-weight:400;font-size:clamp(1.8rem,4.6vw,2.9rem);line-height:1;color:var(--copper);letter-spacing:.01em}
 .hero .zh{font-weight:900;font-size:clamp(1.5rem,3.6vw,2.2rem);letter-spacing:.06em;margin-top:.15rem}
 .hero p{color:var(--ink-2);margin:.5rem 0 0;max-width:60ch;font-size:.92rem}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.1rem 1.6rem}
+.grid2{
+  display:grid; gap:1rem;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));
+  align-items:start;
+}
+.grid2 > *{min-width:0}          /* 關鍵：不加這行，內容比軌道寬時會溢出到隔壁欄 */
+.gbox{
+  min-width:0; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:14px; padding:.95rem 1.05rem .35rem;
+}
+.gbox.wide{grid-column:1/-1}      /* 控制卡橫跨整列，選項才不會被擠窄 */
 .field{display:grid;gap:.35rem;margin-bottom:.9rem}
 .field > label{font-family:"JetBrains Mono",monospace;font-size:.63rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
-.field .hint{font-size:.72rem;color:var(--ink-3);line-height:1.4}
+.field .hint{font-size:.72rem;color:var(--ink-3);line-height:1.4;overflow-wrap:anywhere;word-break:break-word}
 .seg{display:flex;gap:.3rem;flex-wrap:wrap}
-#segCount{display:grid;grid-template-columns:repeat(3,1fr)}   /* 六個選項排成 3×2，不要落單 */
+#segCount{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}  /* minmax(0,…) 讓軌道不被內容撐開 */
 .seg button{
-  border:1px solid var(--line);background:var(--panel-2);border-radius:8px;
+  border:1px solid var(--line);background:var(--panel-3);border-radius:8px;
   padding:.38rem .7rem;font-size:.82rem;font-weight:700;transition:.15s;
+  white-space:nowrap;min-width:0;
 }
 .seg button[aria-pressed="true"]{background:var(--teal);border-color:transparent;color:#fff}
 .namerow{display:flex;align-items:center;gap:.45rem;margin-bottom:.3rem}
@@ -530,7 +541,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   flex:1;min-width:0;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
   border-radius:8px;padding:.35rem .55rem;font:inherit;font-size:.85rem;
 }
-.toggles{display:grid;gap:.4rem}
+.toggles{display:grid;gap:.4rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
 .tg{
   display:flex;align-items:center;gap:.6rem;border:1px solid var(--line);border-radius:10px;
   padding:.45rem .6rem;background:var(--panel-2);cursor:pointer;transition:.15s;text-align:left;width:100%;
@@ -588,7 +599,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
     </div>
 
     <div class="grid2">
-      <div>
+      <div class="gbox">
         <div class="field">
           <label>玩家（2～7 人）</label>
           <div class="hint">人少的時候建議搭配小地圖或調低資源密度，不然要跑很久才碰得到彼此。</div>
@@ -597,7 +608,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
         </div>
       </div>
 
-      <div>
+      <div class="gbox">
         <div class="field">
           <label>地圖尺寸</label>
           <div class="seg" id="segMap"></div>
@@ -613,7 +624,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
         </div>
       </div>
 
-      <div>
+      <div class="gbox">
         <div class="field">
           <label>目標積分</label>
           <div class="rangerow">
@@ -635,7 +646,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
         </div>
       </div>
 
-      <div>
+      <div class="gbox wide">
         <div class="field">
           <label>本場開放的控制卡</label>
           <div class="toggles" id="cardToggles"></div>
@@ -943,6 +954,7 @@ function summarize(){
     `${cfg.count} 人 · ${m.rows}×${m.cols} · 目標 ${cfg.target} 分 · ${ENDMODE[cfg.endMode].lbl} · ${on}/4 種卡`;
 }
 function initSetup(){
+  document.documentElement.lang = "zh-Hant";   // 讓瀏覽器用中文的斷行規則
   segNum("#segCount",[2,3,4,5,6,7],"count",v=>v+" 人",()=>{renderNames();summarize();});
   seg("#segMap",MAPS,"map",summarize);
   seg("#segDensity",DENSITY,"density",summarize);
