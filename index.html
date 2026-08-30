@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>機器人蓋城市 Robot City</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -142,7 +143,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .col.rail{overflow-y:auto; overflow-x:hidden; gap:.45rem}
 .col.rail > .panel{flex:none}
 .col.rail > [data-panelbox="mission"]{flex:1 0 auto; min-height:8rem}
-.col{min-height:0; display:flex; flex-direction:column; gap:.6rem}
+.col{min-height:0; min-width:0; display:flex; flex-direction:column; gap:.6rem}
 .panel{
   background:var(--panel); border:1px solid var(--line); border-radius:12px;
   box-shadow:var(--shadow); min-height:0; display:flex; flex-direction:column;
@@ -223,7 +224,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .guide.collapsed .gtip{font-size:.78rem; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 
 /* ============ 地圖 ============ */
-.boardpanel{flex:1; position:relative; padding:.6rem; align-items:center; justify-content:center;
+.boardpanel{flex:1; position:relative; padding:.6rem; overflow:hidden;
+  align-items:center; justify-content:center;
   background:
     linear-gradient(var(--trace) 1px, transparent 1px) 0 0/100% 26px,
     linear-gradient(90deg,var(--trace) 1px, transparent 1px) 0 0/26px 100%,
@@ -231,7 +233,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 }
 .boardframe{
   display:grid; grid-template-columns:1.15rem 1fr; grid-template-rows:1.15rem 1fr;
-  gap:.25rem; margin:auto;
+  gap:.25rem; margin:auto; flex:none;   /* 不可被 flex 壓縮，否則格子會變形 */
 }
 .corner{}
 .colhdr,.rowhdr{display:grid; gap:0}
@@ -246,9 +248,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   grid-template-columns:repeat(var(--cols),1fr);
   grid-template-rows:repeat(var(--rows),1fr);
   width:100%; height:100%; min-width:0; min-height:0;
-  container-type:inline-size;
+  --u:32px;                              /* 由 fitBoard() 換成實際格子邊長 */
 }
-.cell,.robot{--u:calc(100cqw / var(--cols))}
 .cell{padding:2px; position:relative}
 .pad{
   width:100%;height:100%;border-radius:5px;
@@ -529,9 +530,13 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
 .rankrow .brk{font-size:.72rem;color:var(--ink-3);font-family:"JetBrains Mono",monospace}
 .rankrow .tot{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1.4rem;font-variant-numeric:tabular-nums}
 
-@media (max-width:1180px){
-  .stage{grid-template-columns:1fr 220px; grid-template-rows:1fr auto}
-  .stage .col.rail{grid-column:1/-1; max-height:15rem}
+@media (max-width:940px){
+  .stage{grid-template-columns:1fr 200px; grid-template-rows:1fr auto}
+  .stage .col.rail{grid-column:1/-1; max-height:13rem}
+}
+@media (max-width:1240px){
+  .stage{gap:.5rem; padding:.5rem .6rem}
+  .card{width:5.5rem; min-width:5.5rem; height:6.7rem}
 }
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.01ms !important}
@@ -1139,15 +1144,23 @@ function fitBoard(){
   const cs = getComputedStyle(wrap);
   const availW = wrap.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
   const availH = wrap.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+  if(availW < 40 || availH < 40) return;      // 版面還沒算好，等 ResizeObserver 再叫一次
   const {rows, cols} = G.board;
-  const cell = Math.max(22, Math.floor(Math.min((availW-GUTTER)/cols, (availH-GUTTER)/rows)));
+  const cell = Math.max(10, Math.floor(Math.min((availW-GUTTER)/cols, (availH-GUTTER)/rows)));
   frame.style.width  = (cell*cols + GUTTER) + "px";
   frame.style.height = (cell*rows + GUTTER) + "px";
+  // 格子裡的字級、機器人箭頭都依這個實際邊長縮放
+  $("#board").style.setProperty("--u", cell + "px");
 }
-window.addEventListener("resize", fitBoard);
-document.addEventListener("transitionend", (e)=>{
-  if(e.target.classList && e.target.classList.contains("stage")) fitBoard();
-});
+/* 面板尺寸只要變動就重算：換視窗、縮放、字型載入、引導列換行、面板收合都涵蓋。
+   直接呼叫而不排進 requestAnimationFrame——背景分頁不會跑 rAF，會留下舊尺寸。 */
+window.addEventListener("resize", ()=>{ if(G) applyUI(); else fitBoard(); });
+if(window.ResizeObserver){
+  new ResizeObserver(()=>fitBoard()).observe(document.querySelector(".boardpanel"));
+}else{
+  setInterval(fitBoard, 1000);          // 舊瀏覽器的後備方案
+}
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(fitBoard);
 
 function paintCell(r,c,node){
   const cell = G.board.cells[r][c];
@@ -1979,13 +1992,15 @@ function applyUI(){
   $("#colProg").classList.toggle("mini", miniProg);
   $("#colRail").classList.toggle("mini", miniRail);
   const st = document.querySelector(".stage");
-  st.style.setProperty("--wProg", miniProg ? "2.9rem" : "236px");
-  st.style.setProperty("--wRail", miniRail ? "2.9rem" : "322px");
+  const narrow = window.innerWidth < 1240;
+  st.style.setProperty("--wProg", miniProg ? "2.9rem" : (narrow ? "200px" : "236px"));
+  st.style.setProperty("--wRail", miniRail ? "2.9rem" : (narrow ? "268px" : "322px"));
   $("#tray").classList.toggle("collapsed", ui.c.hand);
   $("#guide").classList.toggle("collapsed", ui.c.guide);
   const allMin = Object.values(ui.c).every(Boolean);
   $("#btnFocus").textContent = allMin ? "還原版面" : "專注地圖";
-  requestAnimationFrame(()=>requestAnimationFrame(fitBoard));
+  fitBoard();
+  setTimeout(fitBoard, 260);   /* .stage 欄寬有 .22s 過場，結束後再校正一次 */
 }
 function wireUI(){
   document.querySelectorAll(".pmin").forEach(b=>b.onclick = ()=>{
