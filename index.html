@@ -1,0 +1,2037 @@
+<title>機器人蓋城市 Robot City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+
+<style>
+*,*::before,*::after{box-sizing:border-box}
+
+/* ============ 主題 tokens：淺色＝白阻焊層 PCB ============ */
+:root{
+  --ground:#E7ECE8;
+  --panel:#FFFFFF;
+  --panel-2:#F1F5F2;
+  --panel-3:#E4EBE6;
+  --line:#C3D0C8;
+  --line-soft:#DBE4DE;
+  --ink:#122019;
+  --ink-2:#4C6156;
+  --ink-3:#7B9187;
+  --copper:#9C5F16;
+  --teal:#0B7A67;
+  --gold:#B48A22;
+  --danger:#B23A33;
+  --ok:#2C7F52;
+  --board-bg:#DDE6DF;
+  --pad:#CBD8CF;
+  --pad-edge:#B3C4B9;
+  --trace:rgba(156,95,22,.20);
+  --chip:#3B4A44;
+  --chip-ink:#C6D3CC;
+  --shadow:0 1px 0 rgba(18,32,25,.05), 0 10px 26px -14px rgba(18,32,25,.45);
+  --shadow-lift:0 2px 0 rgba(18,32,25,.07), 0 18px 34px -14px rgba(18,32,25,.5);
+  --focus:#0B7A67;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#061713;
+    --panel:#0C241E;
+    --panel-2:#122E26;
+    --panel-3:#173a30;
+    --line:#1E483C;
+    --line-soft:#16362C;
+    --ink:#DDEAE3;
+    --ink-2:#93B1A4;
+    --ink-3:#6C8E81;
+    --copper:#D9A441;
+    --teal:#3DBFA5;
+    --gold:#E3C35E;
+    --danger:#E4655C;
+    --ok:#4FC07E;
+    --board-bg:#0A2019;
+    --pad:#123A2E;
+    --pad-edge:#1B5344;
+    --trace:rgba(217,164,65,.18);
+    --chip:#0A1512;
+    --chip-ink:#8FA79E;
+    --shadow:0 1px 0 rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.9);
+    --shadow-lift:0 2px 0 rgba(0,0,0,.4), 0 18px 34px -14px rgba(0,0,0,.95);
+    --focus:#3DBFA5;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#061713; --panel:#0C241E; --panel-2:#122E26; --panel-3:#173a30;
+  --line:#1E483C; --line-soft:#16362C; --ink:#DDEAE3; --ink-2:#93B1A4; --ink-3:#6C8E81;
+  --copper:#D9A441; --teal:#3DBFA5; --gold:#E3C35E; --danger:#E4655C; --ok:#4FC07E;
+  --board-bg:#0A2019; --pad:#123A2E; --pad-edge:#1B5344; --trace:rgba(217,164,65,.18);
+  --chip:#0A1512; --chip-ink:#8FA79E;
+  --shadow:0 1px 0 rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.9);
+  --shadow-lift:0 2px 0 rgba(0,0,0,.4), 0 18px 34px -14px rgba(0,0,0,.95);
+  --focus:#3DBFA5;
+}
+
+/* 卡片＝實體物件，兩個主題皆相同 */
+:root{
+  --c-white:#F7F9F7;   --c-white-ink:#17241E;  --c-white-edge:#C9D4CD;
+  --c-green:#2F9C6E;   --c-green-ink:#052A1D;  --c-green-edge:#227A55;
+  --c-yellow:#EBC33F;  --c-yellow-ink:#3A2B04; --c-yellow-edge:#C69F22;
+  --c-orange:#E4813A;  --c-orange-ink:#3B1A05; --c-orange-edge:#BC6423;
+  --c-red:#D24A44;     --c-red-ink:#FFF0EE;    --c-red-edge:#A9322D;
+  --r-wood:#A97142; --r-iron:#5E7FA6; --r-stone:#7E8A93; --r-sand:#CFA945;
+}
+
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+
+/* ============ 通用元件 ============ */
+.btn{
+  border:1px solid var(--line); background:var(--panel); color:var(--ink);
+  padding:.5rem .9rem; border-radius:8px; font-weight:700; font-size:.85rem;
+  display:inline-flex; align-items:center; gap:.4rem; transition:.15s;
+}
+.btn:hover{background:var(--panel-2); border-color:var(--ink-3)}
+.btn:disabled{opacity:.38; cursor:not-allowed}
+.btn.primary{
+  background:linear-gradient(180deg,var(--teal),color-mix(in srgb,var(--teal) 82%, #000));
+  border-color:transparent; color:#fff; box-shadow:var(--shadow);
+}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent}
+.btn.warn{border-color:var(--danger); color:var(--danger)}
+.btn.big{padding:.7rem 1.2rem; font-size:1rem}
+
+.eyebrow{
+  font-family:"JetBrains Mono",monospace; font-size:.62rem; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+
+/* ============ 版面骨架 ============ */
+#app{display:none; height:100dvh; grid-template-rows:auto auto 1fr auto}
+#app.on{display:grid}
+
+.topbar{
+  display:flex; align-items:center; gap:1rem; padding:.5rem .9rem;
+  background:var(--panel); border-bottom:1px solid var(--line);
+}
+.wordmark{display:flex; align-items:baseline; gap:.55rem; margin-right:.3rem}
+.wordmark b{font-family:"Bungee",sans-serif; font-size:1.02rem; letter-spacing:.02em; color:var(--copper); font-weight:400}
+.wordmark span{font-weight:900; font-size:.95rem; letter-spacing:.04em}
+.turnchip{
+  display:flex; align-items:center; gap:.5rem; padding:.3rem .75rem .3rem .4rem;
+  border-radius:999px; background:var(--panel-2); border:1px solid var(--line);
+}
+.turnchip .dot{width:1.4rem;height:1.4rem;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.72rem}
+.turnchip b{font-size:.95rem}
+.meter{display:flex;align-items:center;gap:.5rem;margin-left:auto}
+.meter .bar{width:120px;height:7px;border-radius:99px;background:var(--panel-3);overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--gold);border-radius:99px;transition:width .4s}
+
+.stage{
+  display:grid; grid-template-columns:1fr var(--wProg,236px) var(--wRail,322px); gap:.7rem;
+  padding:.7rem .9rem; min-height:0;
+  transition:grid-template-columns .22s ease;
+}
+.col.rail{overflow-y:auto; overflow-x:hidden; gap:.45rem}
+.col.rail > .panel{flex:none}
+.col.rail > [data-panelbox="mission"]{flex:1 0 auto; min-height:8rem}
+.col{min-height:0; display:flex; flex-direction:column; gap:.6rem}
+.panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  box-shadow:var(--shadow); min-height:0; display:flex; flex-direction:column;
+}
+.panel > header{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.45rem .65rem; border-bottom:1px solid var(--line-soft);
+}
+.panel > header .eyebrow{flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0}
+.panel > header .eyebrow + .eyebrow{flex:none; opacity:.85}
+.panel .body{padding:.55rem .65rem; overflow:auto; min-height:0}
+
+/* ============ 收合控制 ============ */
+.pmin{
+  flex:none; width:1.4rem; height:1.4rem; border-radius:6px;
+  border:1px solid var(--line); background:var(--panel-2); color:var(--ink-2);
+  display:grid; place-items:center; line-height:1; font-size:.78rem; font-weight:700;
+  font-family:"JetBrains Mono",monospace; transition:.15s;
+}
+.pmin:hover{background:var(--panel-3); color:var(--ink); border-color:var(--ink-3)}
+.panel.collapsed{flex:none}
+.panel.collapsed > header{border-bottom:none}
+#scoreboard{display:grid;gap:.15rem}
+#missions{display:grid;gap:.35rem;align-content:start}
+.panel.collapsed > .body{display:none !important}
+
+.coltab{display:none}
+.col.mini > .panel{display:none}
+.col.mini > .coltab{
+  display:flex; align-items:center; justify-content:center;
+  writing-mode:vertical-rl; text-orientation:mixed;
+  width:100%; height:100%; padding:.7rem .2rem;
+  border:1px solid var(--line); border-radius:12px; background:var(--panel);
+  box-shadow:var(--shadow); color:var(--ink-2);
+  font-weight:700; font-size:.8rem; letter-spacing:.16em; transition:.15s;
+}
+.col.mini > .coltab:hover{color:var(--ink); border-color:var(--ink-3); background:var(--panel-2)}
+
+.traytab{display:none}
+.tray.collapsed{padding:.25rem .9rem}
+.tray.collapsed .hand, .tray.collapsed .trayside{display:none}
+.tray.collapsed .traytab{
+  display:block; width:100%; border:1px dashed var(--line); background:transparent;
+  border-radius:8px; padding:.3rem; font-size:.8rem; font-weight:700; color:var(--ink-2);
+}
+.tray.collapsed .traytab:hover{color:var(--ink); border-color:var(--ink-3)}
+
+/* ============ 回合引導 ============ */
+.guide{
+  display:flex; align-items:center; gap:.85rem;
+  padding:.5rem .9rem; background:var(--panel-2);
+  border-bottom:1px solid var(--line);
+}
+.gsteps{display:flex; align-items:center; gap:.28rem; flex:none}
+.gstep{
+  display:flex; align-items:center; gap:.38rem; white-space:nowrap;
+  padding:.24rem .68rem; border-radius:999px; font-size:.82rem; font-weight:700;
+  border:1px solid var(--line); color:var(--ink-3); background:transparent;
+}
+.gstep .n{font-family:"JetBrains Mono",monospace; font-size:.7rem; opacity:.85}
+.gstep.done{color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%, transparent)}
+.gstep.now{
+  background:var(--teal); border-color:transparent; color:#fff;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--teal) 20%, transparent);
+}
+.garrow{color:var(--ink-3); font-size:.72rem}
+.gtip{flex:1; min-width:0; font-size:.88rem; line-height:1.35; color:var(--ink)}
+.gtip b{color:var(--copper)}
+.gtip .warn{color:var(--danger); font-weight:700}
+.gtip kbd{
+  font-family:"Noto Sans TC",sans-serif; font-weight:700; font-size:.8rem;
+  border:1px solid var(--line); border-bottom-width:2px; border-radius:5px;
+  padding:.05rem .35rem; background:var(--panel); color:var(--ink);
+}
+.guide.collapsed{padding:.2rem .9rem}
+.guide.collapsed .gstep:not(.now){display:none}
+.guide.collapsed .garrow{display:none}
+.guide.collapsed .gtip{font-size:.78rem; color:var(--ink-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+/* ============ 地圖 ============ */
+.boardpanel{flex:1; position:relative; padding:.6rem; align-items:center; justify-content:center;
+  background:
+    linear-gradient(var(--trace) 1px, transparent 1px) 0 0/100% 26px,
+    linear-gradient(90deg,var(--trace) 1px, transparent 1px) 0 0/26px 100%,
+    var(--board-bg);
+}
+.boardframe{
+  display:grid; grid-template-columns:1.15rem 1fr; grid-template-rows:1.15rem 1fr;
+  gap:.25rem; margin:auto;
+}
+.corner{}
+.colhdr,.rowhdr{display:grid; gap:0}
+.colhdr{grid-template-columns:repeat(var(--cols),1fr)}
+.rowhdr{grid-template-rows:repeat(var(--rows),1fr)}
+.colhdr i,.rowhdr i{
+  display:grid;place-items:center;font-style:normal;
+  font-family:"JetBrains Mono",monospace;font-size:.6rem;font-weight:700;color:var(--ink-3);
+}
+.board{
+  position:relative; display:grid; gap:0;
+  grid-template-columns:repeat(var(--cols),1fr);
+  grid-template-rows:repeat(var(--rows),1fr);
+  width:100%; height:100%; min-width:0; min-height:0;
+  container-type:inline-size;
+}
+.cell,.robot{--u:calc(100cqw / var(--cols))}
+.cell{padding:2px; position:relative}
+.pad{
+  width:100%;height:100%;border-radius:5px;
+  background:var(--pad); border:1px solid var(--pad-edge);
+  display:grid; place-items:center; position:relative; transition:.2s;
+}
+.cell.wall .pad{
+  background:var(--chip); border-color:color-mix(in srgb,var(--chip) 70%, #fff 12%);
+  border-radius:3px;
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--chip) 80%, #fff 8%);
+}
+.cell.wall .pad::after{
+  content:attr(data-lab); font-family:"JetBrains Mono",monospace; font-weight:700;
+  font-size:calc(var(--u) * .23); color:var(--chip-ink); letter-spacing:.04em;
+}
+.cell.cpu .pad{
+  background:transparent; border:1px dashed color-mix(in srgb,var(--gold) 65%, transparent);
+}
+.cell.cpu .pad::before{
+  content:"CPU"; position:absolute; bottom:3%; font-family:"JetBrains Mono",monospace;
+  font-size:calc(var(--u) * .18); font-weight:700; color:var(--gold); opacity:.8;
+}
+.cell.tunnel .pad{
+  background:color-mix(in srgb,var(--teal) 18%, var(--pad));
+  border-color:var(--teal);
+  border-radius:5px 5px 5px 12px;
+}
+.cell.tunnel .pad::after{
+  content:"SIM " attr(data-t); font-family:"JetBrains Mono",monospace; font-weight:700;
+  font-size:calc(var(--u) * .18); color:var(--teal);
+}
+.res{
+  width:66%; aspect-ratio:1; border-radius:7px; display:grid; place-items:center;
+  color:#fff; font-weight:900; font-size:calc(var(--u) * .36);
+  box-shadow:0 2px 0 rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.3);
+  animation:pop .25s cubic-bezier(.34,1.5,.5,1);
+}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.res.wood{background:var(--r-wood)} .res.iron{background:var(--r-iron)}
+.res.stone{background:var(--r-stone)} .res.sand{background:var(--r-sand)}
+
+.robotlayer{position:absolute; inset:0; pointer-events:none}
+.robot{
+  position:absolute; left:0; top:0;
+  width:calc(100% / var(--cols)); height:calc(100% / var(--rows));
+  transform:translate(calc(var(--rc) * 100%), calc(var(--rr) * 100%));
+  transition:transform .3s cubic-bezier(.34,1.25,.5,1);
+  display:grid; place-items:center; padding:3px;
+}
+.robot .body{
+  width:80%;height:80%;border-radius:8px; background:var(--pc);
+  display:grid;place-items:center; position:relative;
+  color:#fff; font-family:"JetBrains Mono",monospace; font-weight:700;
+  font-size:calc(var(--u) * .3);
+  box-shadow:0 3px 0 rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.35);
+  border:2px solid rgba(255,255,255,.7);
+}
+.robot .rot{position:absolute; inset:0; transition:transform .3s cubic-bezier(.34,1.25,.5,1)}
+.robot .nose{
+  position:absolute; width:0;height:0; left:50%;
+  top:calc(var(--u) * .145);
+  margin-left:calc(var(--u) * -.115);
+  border-left:calc(var(--u) * .115) solid transparent;
+  border-right:calc(var(--u) * .115) solid transparent;
+  border-bottom:calc(var(--u) * .13) solid rgba(255,255,255,.95);
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.35));
+}
+.robot.active .body{box-shadow:0 3px 0 rgba(0,0,0,.28), 0 0 0 4px color-mix(in srgb,var(--pc) 35%, transparent)}
+.cell.pick{cursor:pointer}
+.cell.pick .pad{box-shadow:inset 0 0 0 2px var(--gold); border-color:var(--gold)}
+.cell.pick:hover .pad{background:color-mix(in srgb,var(--gold) 40%, var(--pad)); transform:scale(1.06)}
+
+/* ============ 程式區 ============ */
+.progslots{display:flex;flex-direction:column;gap:.3rem}
+.slot{
+  display:grid; grid-template-columns:1.5rem 1fr; align-items:center; gap:.4rem;
+  min-height:2.5rem; border-radius:8px; border:1px dashed var(--line);
+  background:var(--panel-2); padding:.15rem;
+}
+.slot .ln{
+  font-family:"JetBrains Mono",monospace;font-size:.65rem;font-weight:700;
+  color:var(--ink-3); text-align:right; padding-right:.1rem;
+}
+.slot .empty{font-size:.72rem;color:var(--ink-3);padding-left:.35rem}
+.slot.filled{border-style:solid;border-color:transparent;background:transparent}
+.slot.running{box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 55%, transparent); border-radius:9px}
+.slot.running .ln{color:var(--gold)}
+.minicard{
+  border-radius:7px; padding:.3rem .45rem; cursor:pointer; border:1px solid;
+  display:flex; align-items:center; gap:.4rem; transition:.15s;
+}
+.minicard:hover{transform:translateX(2px)}
+.minicard .nm{font-weight:700;font-size:.78rem;line-height:1.15}
+.minicard .cd{font-family:"JetBrains Mono",monospace;font-size:.58rem;opacity:.72;line-height:1.15}
+.minicard .txt{flex:1;min-width:0}
+.minicard .tag{
+  font-family:"JetBrains Mono",monospace;font-size:.55rem;font-weight:700;
+  letter-spacing:.08em;opacity:.7
+}
+.log{font-family:"JetBrains Mono",monospace;font-size:.66rem;line-height:1.6;color:var(--ink-2)}
+.log div{padding:.05rem 0;border-bottom:1px dotted var(--line-soft)}
+.log b{color:var(--ink)}
+.log .g{color:var(--ok)} .log .r{color:var(--danger)} .log .y{color:var(--gold)}
+
+/* ============ 右側面板 ============ */
+.pscore{
+  display:grid; grid-template-columns:1.35rem 1fr auto auto; align-items:center; gap:.5rem;
+  padding:.2rem .4rem; border-radius:8px; border:1px solid transparent;
+  width:100%; text-align:left; font:inherit; color:inherit; background:transparent;
+}
+.pscore.clickable{cursor:pointer}
+.pscore.clickable:hover{background:var(--panel-3)}
+.pscore.now{background:var(--panel-2); border-color:var(--line)}
+.pscore.peek{border-color:var(--gold); background:color-mix(in srgb,var(--gold) 10%, transparent)}
+.pscore .lackn{
+  font-family:"JetBrains Mono",monospace; font-size:.72rem; font-weight:700;
+  color:var(--ink-3); min-width:2.6rem; text-align:right;
+}
+.pscore .av{width:1.35rem;height:1.35rem;border-radius:5px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.7rem;font-family:"JetBrains Mono",monospace}
+.pscore .nm{font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pscore .sc{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1rem;font-variant-numeric:tabular-nums}
+
+.mission{
+  border:1px solid var(--line); border-radius:10px; padding:.38rem .5rem;
+  background:var(--panel-2); display:grid; gap:.26rem;
+}
+.mission.done{border-color:var(--ok); background:color-mix(in srgb,var(--ok) 12%, var(--panel-2))}
+.mission .top{display:flex;align-items:baseline;gap:.4rem}
+.mission .lbl{font-size:.68rem;color:var(--ink-3);letter-spacing:.06em}
+.mission .lack{
+  display:flex; align-items:center; gap:.2rem; flex-wrap:wrap;
+  border-top:1px dashed var(--line); padding-top:.26rem; font-size:.71rem; color:var(--ink-2);
+}
+.mission.done .lack{border-color:color-mix(in srgb,var(--ok) 40%, transparent); color:var(--ok); font-weight:700}
+.peekbar{
+  display:flex; align-items:center; gap:.5rem; padding:.35rem .5rem; border-radius:8px;
+  background:color-mix(in srgb,var(--gold) 14%, transparent);
+  border:1px solid color-mix(in srgb,var(--gold) 45%, transparent); font-size:.78rem;
+}
+.peekbar b{flex:1}
+.mission .bn{font-weight:900;font-size:.9rem;flex:1}
+.mission .pt{font-family:"JetBrains Mono",monospace;font-weight:700;color:var(--gold);font-size:.9rem}
+.needs{display:flex;flex-wrap:wrap;gap:.22rem}
+.pip{
+  width:1.25rem;height:1.25rem;border-radius:5px;display:inline-grid;place-items:center;
+  font-weight:900;font-size:.68rem;color:#fff;vertical-align:-.32em;
+}
+.pip.off{background:transparent;border:1.5px dashed var(--ink-3);color:var(--ink-3)}
+.pip.off.wood {background:transparent;color:var(--r-wood); border-color:var(--r-wood)}
+.pip.off.iron {background:transparent;color:var(--r-iron); border-color:var(--r-iron)}
+.pip.off.stone{background:transparent;color:var(--r-stone);border-color:var(--r-stone)}
+.pip.off.sand {background:transparent;color:color-mix(in srgb,var(--r-sand) 72%, var(--ink)); border-color:var(--r-sand)}
+.pip.wood{background:var(--r-wood)} .pip.iron{background:var(--r-iron)}
+.pip.stone{background:var(--r-stone)} .pip.sand{background:var(--r-sand)}
+.pip.target{cursor:pointer;box-shadow:0 0 0 2px var(--gold)}
+
+/* ============ 手牌匣 ============ */
+.tray{
+  background:var(--panel); border-top:1px solid var(--line);
+  padding:.5rem .9rem .6rem; display:flex; align-items:flex-end; gap:.7rem;
+}
+.hand{display:flex; gap:.4rem; flex:1; min-width:0; overflow-x:auto; padding-bottom:.15rem}
+.card{
+  width:6.2rem; min-width:6.2rem; height:7.1rem; border-radius:10px; border:1px solid;
+  padding:.4rem .45rem; display:flex; flex-direction:column; gap:.15rem;
+  cursor:pointer; transition:transform .14s, box-shadow .14s; box-shadow:var(--shadow);
+  position:relative; text-align:left;
+}
+.card:hover{transform:translateY(-6px); box-shadow:var(--shadow-lift)}
+.card:disabled{cursor:default;opacity:.4}
+.card:disabled:hover{transform:none}
+.card .tag{
+  font-family:"JetBrains Mono",monospace;font-size:.55rem;font-weight:700;letter-spacing:.1em;opacity:.72
+}
+.card .nm{font-weight:900;font-size:.86rem;line-height:1.18;letter-spacing:.01em}
+.card .sub{font-size:.66rem;line-height:1.25;opacity:.8;flex:1}
+.card .cd{font-family:"JetBrains Mono",monospace;font-size:.55rem;line-height:1.2;opacity:.68;border-top:1px solid currentColor;padding-top:.2rem;margin-top:auto}
+.card.sel{outline:3px solid var(--danger); outline-offset:-3px}
+.card.sel::after{content:"棄";position:absolute;top:.25rem;right:.3rem;background:var(--danger);color:#fff;font-size:.6rem;font-weight:900;border-radius:4px;padding:0 .2rem}
+
+.c-white{background:var(--c-white);color:var(--c-white-ink);border-color:var(--c-white-edge)}
+.c-green{background:var(--c-green);color:#fff;border-color:var(--c-green-edge)}
+.c-yellow{background:var(--c-yellow);color:var(--c-yellow-ink);border-color:var(--c-yellow-edge)}
+.c-orange{background:var(--c-orange);color:#fff;border-color:var(--c-orange-edge)}
+.c-red{background:var(--c-red);color:var(--c-red-ink);border-color:var(--c-red-edge)}
+
+.trayside{display:flex;flex-direction:column;gap:.35rem;align-items:stretch;min-width:11rem}
+
+/* ============ 覆蓋層 ============ */
+.overlay{
+  position:fixed; inset:0; background:color-mix(in srgb,var(--ground) 62%, transparent);
+  backdrop-filter:blur(7px) saturate(.85); display:none; place-items:center; z-index:50; padding:1.2rem;
+}
+.overlay.on{display:grid}
+.sheet{
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  box-shadow:var(--shadow-lift); max-width:min(920px,100%); max-height:100%;
+  overflow:auto; padding:1.4rem 1.6rem;
+}
+.sheet h2{font-size:1.3rem;font-weight:900;margin:0 0 .2rem}
+.sheet h3{font-size:.95rem;font-weight:900;margin:1.1rem 0 .4rem}
+.banner{
+  position:fixed; top:5.4rem; left:50%; transform:translateX(-50%) translateY(-12px);
+  background:var(--ink); color:var(--ground); padding:.5rem 1rem; border-radius:99px;
+  font-weight:700; font-size:.9rem; opacity:0; pointer-events:none; transition:.2s; z-index:60;
+  box-shadow:var(--shadow-lift);
+}
+.banner.on{opacity:1; transform:translateX(-50%) translateY(0)}
+.banner.bad{background:var(--danger); color:#fff}
+.banner.good{background:var(--ok); color:#fff}
+
+/* ============ 設定畫面 ============ */
+#setup{
+  height:100dvh; overflow:auto; display:grid; place-items:center; padding:1.5rem;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, color-mix(in srgb,var(--teal) 12%, transparent), transparent),
+    linear-gradient(var(--trace) 1px, transparent 1px) 0 0/100% 30px,
+    linear-gradient(90deg,var(--trace) 1px, transparent 1px) 0 0/30px 100%,
+    var(--ground);
+}
+#setup.off{display:none}
+.setupcard{
+  background:var(--panel); border:1px solid var(--line); border-radius:18px;
+  box-shadow:var(--shadow-lift); width:min(980px,100%); padding:1.6rem 1.8rem 1.8rem;
+}
+.hero{border-bottom:1px solid var(--line-soft); padding-bottom:1rem; margin-bottom:1.2rem}
+.hero .big{font-family:"Bungee",sans-serif;font-weight:400;font-size:clamp(1.8rem,4.6vw,2.9rem);line-height:1;color:var(--copper);letter-spacing:.01em}
+.hero .zh{font-weight:900;font-size:clamp(1.5rem,3.6vw,2.2rem);letter-spacing:.06em;margin-top:.15rem}
+.hero p{color:var(--ink-2);margin:.5rem 0 0;max-width:60ch;font-size:.92rem}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.1rem 1.6rem}
+.field{display:grid;gap:.35rem;margin-bottom:.9rem}
+.field > label{font-family:"JetBrains Mono",monospace;font-size:.63rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.field .hint{font-size:.72rem;color:var(--ink-3);line-height:1.4}
+.seg{display:flex;gap:.3rem;flex-wrap:wrap}
+.seg button{
+  border:1px solid var(--line);background:var(--panel-2);border-radius:8px;
+  padding:.38rem .7rem;font-size:.82rem;font-weight:700;transition:.15s;
+}
+.seg button[aria-pressed="true"]{background:var(--teal);border-color:transparent;color:#fff}
+.namerow{display:flex;align-items:center;gap:.45rem;margin-bottom:.3rem}
+.namerow .av{width:1.6rem;height:1.6rem;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.75rem;font-family:"JetBrains Mono",monospace;flex:none}
+.namerow input{
+  flex:1;min-width:0;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+  border-radius:8px;padding:.35rem .55rem;font:inherit;font-size:.85rem;
+}
+.toggles{display:grid;gap:.4rem}
+.tg{
+  display:flex;align-items:center;gap:.6rem;border:1px solid var(--line);border-radius:10px;
+  padding:.45rem .6rem;background:var(--panel-2);cursor:pointer;transition:.15s;text-align:left;width:100%;
+}
+.tg .sw{width:2.1rem;height:1.15rem;border-radius:99px;background:var(--line);position:relative;flex:none;transition:.18s}
+.tg .sw::after{content:"";position:absolute;top:2px;left:2px;width:calc(1.15rem - 4px);height:calc(1.15rem - 4px);border-radius:99px;background:var(--panel);transition:.18s}
+.tg[aria-pressed="true"] .sw{background:var(--teal)}
+.tg[aria-pressed="true"] .sw::after{left:calc(100% - 1.15rem + 2px)}
+.tg .swatch{width:.9rem;height:1.25rem;border-radius:3px;border:1px solid rgba(0,0,0,.2);flex:none}
+.tg .t{flex:1;min-width:0}
+.tg .t b{display:block;font-size:.85rem}
+.tg .t span{display:block;font-size:.7rem;color:var(--ink-3);line-height:1.3}
+.tg.locked{opacity:.85;cursor:default}
+.rangerow{display:flex;align-items:center;gap:.6rem}
+.rangerow input[type=range]{flex:1;accent-color:var(--teal)}
+.rangerow output{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1rem;min-width:2.2rem;text-align:right}
+
+table.ref{width:100%;border-collapse:collapse;font-size:.82rem}
+table.ref th,table.ref td{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line-soft)}
+table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.legendrow{display:flex;align-items:center;gap:.5rem;margin:.25rem 0}
+.legendrow .sw{width:1.5rem;height:1.5rem;border-radius:5px;flex:none;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.75rem}
+
+.rank{display:grid;gap:.4rem;margin-top:.8rem}
+.rankrow{
+  display:grid;grid-template-columns:2rem 1.7rem 1fr auto auto;align-items:center;gap:.6rem;
+  padding:.5rem .7rem;border-radius:10px;border:1px solid var(--line);background:var(--panel-2);
+}
+.rankrow.win{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%, var(--panel-2))}
+.rankrow .pos{font-family:"JetBrains Mono",monospace;font-weight:700;color:var(--ink-3);font-size:1rem}
+.rankrow .av{width:1.7rem;height:1.7rem;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.78rem}
+.rankrow .brk{font-size:.72rem;color:var(--ink-3);font-family:"JetBrains Mono",monospace}
+.rankrow .tot{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:1.4rem;font-variant-numeric:tabular-nums}
+
+@media (max-width:1180px){
+  .stage{grid-template-columns:1fr 220px; grid-template-rows:1fr auto}
+  .stage .col.rail{grid-column:1/-1; max-height:15rem}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+
+<!-- ============================ 設定畫面 ============================ -->
+<div id="setup">
+  <div class="setupcard">
+    <div class="hero">
+      <div class="big">ROBOT CITY</div>
+      <div class="zh">機器人蓋城市</div>
+      <p>用「循序、選擇、重複、副程式」四種程式結構，指揮機器人在電路板城市上搶資源、蓋建築。一台電腦接大螢幕，5～7 位學生輪流上台出牌。</p>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <div class="field">
+          <label>玩家（5～7 人）</label>
+          <div class="seg" id="segCount"></div>
+          <div id="names" style="margin-top:.5rem"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="field">
+          <label>地圖尺寸</label>
+          <div class="seg" id="segMap"></div>
+        </div>
+        <div class="field">
+          <label>資源密度</label>
+          <div class="seg" id="segDensity"></div>
+          <div class="hint">密度越高，遊戲越長。若選「資源搶光」結束，這項直接決定遊戲時間。</div>
+        </div>
+        <div class="field">
+          <label>任務卡張數（每人同時持有）</label>
+          <div class="seg" id="segMissions"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="field">
+          <label>目標積分</label>
+          <div class="rangerow">
+            <input type="range" id="rngScore" min="4" max="20" step="1" value="8">
+            <output id="outScore">8</output>
+          </div>
+        </div>
+        <div class="field">
+          <label>結束條件</label>
+          <div class="seg" id="segEnd"></div>
+        </div>
+        <div class="field">
+          <label>程式區格數（每回合最多出幾張）</label>
+          <div class="seg" id="segSlots"></div>
+        </div>
+        <div class="field">
+          <label>執行速度</label>
+          <div class="seg" id="segSpeed"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="field">
+          <label>本場開放的控制卡</label>
+          <div class="toggles" id="cardToggles"></div>
+          <div class="hint">依學生程度調整。只開白卡＝純粹的循序指令；加上黃卡＝迴圈；綠卡＝條件判斷；橘＋紅＝呼叫副程式。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:1.2rem;flex-wrap:wrap">
+      <button class="btn primary big" id="btnStart">開始遊戲 ▶</button>
+      <button class="btn ghost" id="btnRulesSetup">遊戲規則與卡片說明</button>
+      <span class="eyebrow" style="margin-left:auto" id="setupSummary"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ 遊戲畫面 ============================ -->
+<div id="app">
+  <div class="topbar">
+    <div class="wordmark"><b>ROBOT CITY</b><span>機器人蓋城市</span></div>
+    <div class="turnchip">
+      <span class="eyebrow" id="roundLbl">ROUND 1</span>
+      <span class="dot" id="turnDot">1</span>
+      <b id="turnName">—</b>
+      <span class="eyebrow" id="phaseLbl">排程中</span>
+    </div>
+    <div class="meter">
+      <span class="eyebrow" id="meterLbl"></span>
+      <span class="bar"><i id="meterBar" style="width:0%"></i></span>
+      <button class="btn ghost" id="btnFocus">專注地圖</button>
+      <button class="btn ghost" id="btnRules">規則</button>
+      <button class="btn ghost" id="btnQuit">結束遊戲</button>
+    </div>
+  </div>
+
+  <!-- 回合引導 -->
+  <div class="guide" id="guide">
+    <div class="gsteps" id="gsteps"></div>
+    <div class="gtip" id="gtip"></div>
+    <button class="pmin" data-panel="guide" title="縮小">－</button>
+  </div>
+
+  <div class="stage">
+    <!-- 地圖 -->
+    <div class="col">
+      <div class="panel boardpanel">
+        <div class="boardframe" id="boardframe">
+          <div class="corner"></div>
+          <div class="colhdr" id="colhdr"></div>
+          <div class="rowhdr" id="rowhdr"></div>
+          <div class="board" id="board">
+            <div class="robotlayer" id="robotlayer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 程式區 -->
+    <div class="col" id="colProg">
+      <button class="coltab" data-coltab="prog">程式區 · 執行紀錄 ⟩</button>
+      <div class="panel" data-panelbox="prog">
+        <header><span class="eyebrow">程式區 / PROGRAM</span><span class="eyebrow" id="progCount">0/6</span><button class="pmin" data-panel="prog" title="縮小">－</button></header>
+        <div class="body">
+          <div class="progslots" id="progslots"></div>
+          <div style="display:flex;gap:.35rem;margin-top:.6rem">
+            <button class="btn primary" id="btnRun" style="flex:1;justify-content:center">執行 ▶</button>
+            <button class="btn ghost" id="btnClear">清空</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1" data-panelbox="log">
+        <header><span class="eyebrow">執行紀錄 / TRACE</span><button class="pmin" data-panel="log" title="縮小">－</button></header>
+        <div class="body log" id="log"></div>
+      </div>
+    </div>
+
+    <!-- 玩家面板 -->
+    <div class="col rail" id="colRail">
+      <button class="coltab" data-coltab="rail">計分板 · 任務卡 · 暫存卡 ⟩</button>
+      <div class="panel" data-panelbox="score">
+        <header><span class="eyebrow">計分板 / SCORE</span><span class="eyebrow" title="離完成最近的一張任務卡，還差幾個資源">還差</span><button class="pmin" data-panel="score" title="縮小">－</button></header>
+        <div class="body" id="scoreboard"></div>
+      </div>
+      <div class="panel" data-panelbox="mission">
+        <header><span class="eyebrow">任務卡 / ORDERS</span><span class="eyebrow" id="missionOwner"></span><button class="pmin" data-panel="mission" title="縮小">－</button></header>
+        <div class="body" id="missions"></div>
+      </div>
+      <div class="panel" data-panelbox="buffer">
+        <header>
+          <span class="eyebrow">暫存卡 / BUFFER</span>
+          <span class="eyebrow" style="color:var(--danger)">結算不計分</span>
+          <button class="pmin" data-panel="buffer" title="縮小">－</button>
+        </header>
+        <div class="body">
+          <div class="needs" id="buffer" style="min-height:1.4rem"></div>
+          <button class="btn ghost" id="btnSwap" style="width:100%;justify-content:center;margin-top:.35rem">2 換 1</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手牌匣 -->
+  <div class="tray" id="tray">
+    <button class="traytab" id="traytab">▲ 展開手牌匣</button>
+    <div class="hand" id="hand"></div>
+    <div class="trayside">
+      <div style="display:flex;align-items:center;gap:.4rem">
+        <span class="eyebrow" id="handHint" style="flex:1">點卡片 → 放進程式區</span>
+        <button class="pmin" data-panel="hand" title="縮小">－</button>
+      </div>
+      <button class="btn" id="btnDiscardMode">選擇要棄掉的牌</button>
+      <button class="btn primary" id="btnEnd">結束回合 →</button>
+    </div>
+  </div>
+</div>
+
+<div class="banner" id="banner"></div>
+
+<!-- 一般覆蓋層（規則／選擇目標／分配資源／結算） -->
+<div class="overlay" id="ov"><div class="sheet" id="ovSheet"></div></div>
+
+<script>
+"use strict";
+
+/* =======================================================================
+   1. 靜態資料
+   ======================================================================= */
+const DIRS = [[-1,0],[0,1],[1,0],[0,-1]];            // 0=上 1=右 2=下 3=左
+const DIRNAME = ["上","右","下","左"];
+const RES = {
+  wood:{ch:"木", name:"木頭"}, iron:{ch:"鐵", name:"鐵礦"},
+  stone:{ch:"石", name:"石頭"}, sand:{ch:"沙", name:"沙子"}
+};
+const RESKEYS = Object.keys(RES);
+const PCOLORS = ["#E0564E","#2F8FD8","#3FA96B","#E0A02A","#A96BD0","#E07A3C","#2FB6B0"];
+const DEFAULT_NAMES = ["1號機","2號機","3號機","4號機","5號機","6號機","7號機"];
+
+/* --- 控制卡 --------------------------------------------------------- */
+// act: 單一動作代號，供白卡與綠卡的「是/否」分支共用
+const ACT = {
+  f1:{lbl:"前進 1", run:(p)=>stepForward(p,1)},
+  f2:{lbl:"前進 2", run:(p)=>stepForward(p,2)},
+  f3:{lbl:"前進 3", run:(p)=>stepForward(p,3)},
+  L :{lbl:"左轉",  run:(p)=>turn(p,-1)},
+  R :{lbl:"右轉",  run:(p)=>turn(p,1)},
+  U :{lbl:"迴轉",  run:(p)=>turn(p,2)},
+};
+const COND = {
+  canMove:{lbl:"前方可通行？", test:(p)=>frontFree(p)},
+  resAhead:{lbl:"前方有資源？", test:(p)=>{const c=front(p); return !!(c && c.res);}},
+  wallAhead:{lbl:"前方是障礙？", test:(p)=>!frontFree(p)},
+};
+
+const CARDS = [
+  // ---- 白：循序結構 ----
+  {id:"w_f1", g:"white", tag:"SEQ", nm:"前進 1", sub:"沿著面對方向走 1 格", cd:"move(1)", act:"f1", n:14},
+  {id:"w_f2", g:"white", tag:"SEQ", nm:"前進 2", sub:"沿著面對方向走 2 格", cd:"move(2)", act:"f2", n:9},
+  {id:"w_f3", g:"white", tag:"SEQ", nm:"前進 3", sub:"沿著面對方向走 3 格", cd:"move(3)", act:"f3", n:5},
+  {id:"w_L",  g:"white", tag:"SEQ", nm:"左轉",   sub:"原地向左轉 90°",     cd:"turn(-90)", act:"L", n:9},
+  {id:"w_R",  g:"white", tag:"SEQ", nm:"右轉",   sub:"原地向右轉 90°",     cd:"turn(90)",  act:"R", n:9},
+  {id:"w_U",  g:"white", tag:"SEQ", nm:"迴轉",   sub:"原地轉 180°",        cd:"turn(180)", act:"U", n:5},
+
+  // ---- 黃：重複結構（迴圈）----
+  {id:"y_1x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 1 張，跑 2 次", cd:"repeat(2){1}", k:1, times:2, n:4},
+  {id:"y_1x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"接下來 1 張，跑 3 次", cd:"repeat(3){1}", k:1, times:3, n:3},
+  {id:"y_2x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 2 張，跑 2 次", cd:"repeat(2){2}", k:2, times:2, n:4},
+  {id:"y_2x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"接下來 2 張，跑 3 次", cd:"repeat(3){2}", k:2, times:3, n:2},
+  {id:"y_3x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 3 張，跑 2 次", cd:"repeat(2){3}", k:3, times:2, n:2},
+
+  // ---- 綠：選擇結構（條件判斷）----
+  {id:"g_pf_r", g:"green", tag:"IF", nm:"前方可通行？", sub:"是 → 前進 1｜否 → 右轉", cd:"if(canMove)", cond:"canMove", yes:"f1", no:"R", n:3},
+  {id:"g_pf_l", g:"green", tag:"IF", nm:"前方可通行？", sub:"是 → 前進 1｜否 → 左轉", cd:"if(canMove)", cond:"canMove", yes:"f1", no:"L", n:3},
+  {id:"g_rs_r", g:"green", tag:"IF", nm:"前方有資源？", sub:"是 → 前進 1｜否 → 右轉", cd:"if(hasItem)", cond:"resAhead", yes:"f1", no:"R", n:3},
+  {id:"g_rs_u", g:"green", tag:"IF", nm:"前方有資源？", sub:"是 → 前進 2｜否 → 迴轉", cd:"if(hasItem)", cond:"resAhead", yes:"f2", no:"U", n:3},
+  {id:"g_wl_l", g:"green", tag:"IF", nm:"前方是障礙？", sub:"是 → 左轉｜否 → 前進 1",  cd:"if(isWall)",  cond:"wallAhead", yes:"L", no:"f1", n:3},
+
+  // ---- 橘：發動（呼叫）----
+  {id:"o_call", g:"orange", tag:"CALL", nm:"發動", sub:"要夾在紅卡的前後兩側，紅卡才會生效", cd:"call( … )", n:10},
+
+  // ---- 紅：副程式（特殊能力）----
+  {id:"r_tp", g:"red", tag:"FUNC", nm:"專車接送", sub:"瞬間移動到地圖上任一空格", cd:"teleport(x,y)", fn:"teleport", n:2},
+  {id:"r_sw", g:"red", tag:"FUNC", nm:"交換卡",   sub:"與任一位玩家交換位置",     cd:"swap(player)", fn:"swap", n:2},
+  {id:"r_mg", g:"red", tag:"FUNC", nm:"磁鐵",     sub:"吸走上下左右四格的資源",   cd:"magnet()",     fn:"magnet", n:2},
+  {id:"r_vr", g:"red", tag:"FUNC", nm:"病毒",     sub:"偷走一位玩家已收集的 1 個資源", cd:"virus(player)", fn:"virus", n:2},
+  {id:"r_bs", g:"red", tag:"FUNC", nm:"加速器",   sub:"直線衝刺，最多前進 4 格",  cd:"boost(4)",     fn:"boost", n:2},
+];
+const CARDMAP = Object.fromEntries(CARDS.map(c=>[c.id,c]));
+
+/* --- 任務卡（建築）-------------------------------------------------- */
+const BUILDINGS = [
+  {nm:"小木屋",   pts:2, need:{wood:2}},
+  {nm:"石橋",     pts:3, need:{stone:2, sand:1}},
+  {nm:"倉庫",     pts:3, need:{wood:2, stone:1}},
+  {nm:"車站",     pts:4, need:{iron:2, stone:1}},
+  {nm:"燈塔",     pts:4, need:{stone:2, iron:1, sand:1}},
+  {nm:"學校",     pts:5, need:{wood:1, stone:2, sand:1}},
+  {nm:"玻璃塔",   pts:6, need:{sand:3, iron:1}},
+  {nm:"工廠",     pts:6, need:{iron:3, stone:1}},
+  {nm:"太空港",   pts:7, need:{iron:2, stone:2, sand:1}},
+  {nm:"星際飯店", pts:9, need:{wood:2, iron:2, stone:2, sand:1}},
+];
+
+const WALL_LABELS = ["RAM","BUS","ROM","BUS","RAM"];
+
+/* =======================================================================
+   2. 小工具
+   ======================================================================= */
+const $ = (s)=>document.querySelector(s);
+const el = (tag, cls, html)=>{const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e;};
+const sleep = (ms)=>new Promise(r=>setTimeout(r,ms));
+const rnd = (n)=>Math.floor(Math.random()*n);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+const colLabel = (c)=>String.fromCharCode(65+c);
+const coord = (r,c)=>colLabel(c)+(r+1);
+
+let bannerT;
+function banner(msg, kind){
+  const b = $("#banner");
+  b.textContent = msg;
+  b.className = "banner on" + (kind ? " "+kind : "");
+  clearTimeout(bannerT);
+  bannerT = setTimeout(()=>{b.className="banner"+(kind?" "+kind:"")}, 2200);
+}
+function logLine(html, cls){
+  const L = $("#log");
+  L.appendChild(el("div", cls||"", html));
+  L.scrollTop = L.scrollHeight;
+}
+function resPip(k, extraCls){
+  return `<span class="pip ${k} ${extraCls||""}">${RES[k].ch}</span>`;
+}
+
+/* =======================================================================
+   3. 設定畫面
+   ======================================================================= */
+const MAPS = {
+  small:{lbl:"小 6×9", rows:6, cols:9},
+  mid:  {lbl:"中 8×11", rows:8, cols:11},
+  big:  {lbl:"大 9×14", rows:9, cols:14},
+};
+const DENSITY = {low:{lbl:"少",v:.42}, mid:{lbl:"中",v:.58}, high:{lbl:"多",v:.74}};
+const SPEEDS  = {slow:{lbl:"慢",v:820}, mid:{lbl:"中",v:520}, fast:{lbl:"快",v:300}};
+const ENDMODE = {
+  score:{lbl:"積分達標"}, res:{lbl:"資源搶光"}, both:{lbl:"兩者先到"}
+};
+
+const cfg = {
+  count:6, names:DEFAULT_NAMES.slice(),
+  map:"mid", density:"mid", missions:2, target:8,
+  endMode:"both", slots:6, speed:"mid",
+  enable:{white:true, yellow:true, green:true, red:true},
+};
+
+function seg(hostSel, obj, key, onPick){
+  const host = $(hostSel); host.innerHTML="";
+  Object.entries(obj).forEach(([k,v])=>{
+    const b = el("button", "", typeof v==="string"?v:v.lbl);
+    b.setAttribute("aria-pressed", String(cfg[key]===k));
+    b.onclick = ()=>{ cfg[key]=k; seg(hostSel,obj,key,onPick); onPick&&onPick(); };
+    host.appendChild(b);
+  });
+}
+function segNum(hostSel, values, key, fmt, onPick){
+  const host = $(hostSel); host.innerHTML="";
+  values.forEach(v=>{
+    const b = el("button","", fmt?fmt(v):String(v));
+    b.setAttribute("aria-pressed", String(cfg[key]===v));
+    b.onclick = ()=>{ cfg[key]=v; segNum(hostSel,values,key,fmt,onPick); onPick&&onPick(); };
+    host.appendChild(b);
+  });
+}
+function renderNames(){
+  const host = $("#names"); host.innerHTML="";
+  for(let i=0;i<cfg.count;i++){
+    const row = el("div","namerow");
+    const av = el("span","av", String(i+1)); av.style.background = PCOLORS[i];
+    const inp = el("input"); inp.value = cfg.names[i] || DEFAULT_NAMES[i];
+    inp.maxLength = 8;
+    inp.oninput = ()=>{ cfg.names[i] = inp.value; };
+    row.append(av, inp); host.appendChild(row);
+  }
+}
+const TOGGLE_DEFS = [
+  {k:"white",  c:"var(--c-white)",  t:"白色卡 · 循序結構", d:"前進、左轉、右轉、迴轉（必開）", lock:true},
+  {k:"yellow", c:"var(--c-yellow)", t:"黃色卡 · 重複結構", d:"迴圈：接下來 N 張重複跑幾次"},
+  {k:"green",  c:"var(--c-green)",  t:"綠色卡 · 選擇結構", d:"條件判斷：是 → 做 A，否 → 做 B"},
+  {k:"red",    c:"var(--c-red)",    t:"橘＋紅卡 · 呼叫副程式", d:"紅卡要被兩張橘色發動卡夾住才生效"},
+];
+function renderToggles(){
+  const host = $("#cardToggles"); host.innerHTML="";
+  TOGGLE_DEFS.forEach(d=>{
+    const b = el("button","tg"+(d.lock?" locked":""));
+    b.setAttribute("aria-pressed", String(cfg.enable[d.k]));
+    b.innerHTML = `<span class="swatch" style="background:${d.c}"></span>
+      <span class="t"><b>${d.t}</b><span>${d.d}</span></span><span class="sw"></span>`;
+    if(!d.lock) b.onclick = ()=>{ cfg.enable[d.k] = !cfg.enable[d.k]; renderToggles(); summarize(); };
+    host.appendChild(b);
+  });
+}
+function summarize(){
+  const m = MAPS[cfg.map];
+  const on = TOGGLE_DEFS.filter(d=>cfg.enable[d.k]).length;
+  $("#setupSummary").textContent =
+    `${cfg.count} 人 · ${m.rows}×${m.cols} · 目標 ${cfg.target} 分 · ${ENDMODE[cfg.endMode].lbl} · ${on}/4 種卡`;
+}
+function initSetup(){
+  segNum("#segCount",[5,6,7],"count",v=>v+" 人",()=>{renderNames();summarize();});
+  seg("#segMap",MAPS,"map",summarize);
+  seg("#segDensity",DENSITY,"density",summarize);
+  segNum("#segMissions",[2,3],"missions",v=>v+" 張");
+  seg("#segEnd",ENDMODE,"endMode",summarize);
+  segNum("#segSlots",[4,5,6],"slots",v=>v+" 格");
+  seg("#segSpeed",SPEEDS,"speed");
+  renderNames(); renderToggles(); summarize();
+  const rng = $("#rngScore");
+  rng.oninput = ()=>{ cfg.target = +rng.value; $("#outScore").textContent = rng.value; summarize(); };
+  $("#btnStart").onclick = startGame;
+  $("#btnRulesSetup").onclick = showRules;
+}
+
+/* =======================================================================
+   4. 遊戲狀態
+   ======================================================================= */
+let G = null;   // 全域遊戲狀態
+
+function buildDeck(){
+  const pool = [];
+  CARDS.forEach(c=>{
+    const on = (c.g==="white") ? true
+             : (c.g==="yellow") ? cfg.enable.yellow
+             : (c.g==="green")  ? cfg.enable.green
+             : cfg.enable.red;             // orange + red 同一組
+    if(!on) return;
+    for(let i=0;i<c.n;i++) pool.push(c.id);
+  });
+  // 牌數不足時整副再疊一次，確保 7 人 ×8 張補得動
+  const min = cfg.count*8 + 30;
+  while(pool.length < min) pool.push(...pool.slice(0, pool.length));
+  return shuffle(pool);
+}
+function buildMissionDeck(){
+  const d = [];
+  BUILDINGS.forEach(b=>{ for(let i=0;i<4;i++) d.push(b); });
+  return shuffle(d);
+}
+
+function genBoard(){
+  const {rows, cols} = MAPS[cfg.map];
+  for(let attempt=0; attempt<60; attempt++){
+    const cells = [];
+    for(let r=0;r<rows;r++){
+      const row=[];
+      for(let c=0;c<cols;c++) row.push({r,c,type:"open",res:null,tunnel:null,wall:null});
+      cells.push(row);
+    }
+    // 起始 CPU 格：中間列平均散開
+    const mr = Math.floor(rows/2);
+    const starts = [];
+    for(let i=0;i<cfg.count;i++){
+      const c = Math.round((i+1)*cols/(cfg.count+1));
+      const cc = Math.min(cols-1, Math.max(0, c));
+      cells[mr][cc].type = "cpu";
+      starts.push({r:mr, c:cc});
+    }
+    // 障礙
+    const free = [];
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(cells[r][c].type==="open") free.push(cells[r][c]);
+    shuffle(free);
+    const wallN = Math.round(rows*cols*0.09);
+    for(let i=0;i<wallN;i++){ const cell=free[i]; cell.type="wall"; cell.wall = WALL_LABELS[rnd(WALL_LABELS.length)]; }
+    // 連通性檢查
+    if(!connected(cells, rows, cols, starts[0])) continue;
+    // 地道（SIM 卡）：2 或 4 個，成一個循環
+    const open = free.filter(c=>c.type==="open");
+    shuffle(open);
+    const tN = rows*cols > 80 ? 4 : 2;
+    const tunnels = [];
+    for(let i=0;i<tN && i<open.length;i++){ open[i].type="tunnel"; open[i].tunnel=i+1; tunnels.push(open[i]); }
+    // 資源
+    const rest = open.slice(tN);
+    const resN = Math.round(rest.length * DENSITY[cfg.density].v);
+    const bag = [];
+    for(let i=0;i<resN;i++) bag.push(RESKEYS[i % 4]);
+    shuffle(bag);
+    for(let i=0;i<resN;i++) rest[i].res = bag[i];
+    return {rows, cols, cells, starts, tunnels};
+  }
+  return null;
+}
+function connected(cells, rows, cols, from){
+  const seen = new Set([from.r+","+from.c]);
+  const q = [from];
+  while(q.length){
+    const {r,c} = q.pop();
+    DIRS.forEach(([dr,dc])=>{
+      const nr=r+dr, nc=c+dc;
+      if(nr<0||nc<0||nr>=rows||nc>=cols) return;
+      if(cells[nr][nc].type==="wall") return;
+      const k=nr+","+nc;
+      if(seen.has(k)) return;
+      seen.add(k); q.push({r:nr,c:nc});
+    });
+  }
+  let total=0;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(cells[r][c].type!=="wall") total++;
+  return seen.size === total;
+}
+
+function startGame(){
+  const board = genBoard();
+  if(!board){ banner("地圖產生失敗，請再試一次","bad"); return; }
+  const deck = buildDeck();
+  const mdeck = buildMissionDeck();
+
+  const players = [];
+  for(let i=0;i<cfg.count;i++){
+    const s = board.starts[i];
+    const p = {
+      id:i, name:(cfg.names[i]||DEFAULT_NAMES[i]).trim()||DEFAULT_NAMES[i],
+      color:PCOLORS[i], r:s.r, c:s.c, dir: 0,
+      hand:[], missions:[], buffer:{wood:0,iron:0,stone:0,sand:0},
+      score:0, built:[],
+    };
+    for(let k=0;k<8;k++) p.hand.push(deck.pop());
+    for(let k=0;k<cfg.missions;k++) p.missions.push({b:mdeck.pop(), have:{wood:0,iron:0,stone:0,sand:0}});
+    players.push(p);
+  }
+  G = {
+    board, players, deck, discard:[], mdeck,
+    cur:0, round:1, dirOrder:1, phase:"program",
+    program:[], pending:[], discardMode:false, discardSel:new Set(),
+    running:false, over:false, cellEls:[], robotEls:[],
+    turns:0, startRes:0, viewPlayer:null,
+  };
+  G.startRes = countRes();
+  $("#setup").classList.add("off");
+  $("#app").classList.add("on");
+  buildBoardDOM();
+  applyUI();
+  chooseDirection();
+}
+
+/* 由任務卡總積分最低者，決定順時針或逆時針 */
+function chooseDirection(){
+  const totals = G.players.map(p=>({p, t:p.missions.reduce((s,m)=>s+m.b.pts,0)}));
+  const min = Math.min(...totals.map(t=>t.t));
+  const first = totals.find(t=>t.t===min).p;
+  G.cur = first.id;
+  openSheet(`
+    <h2>由 ${first.name} 決定出牌方向</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0">
+      規則：抽到的任務卡<b>總積分最低</b>的玩家，優先決定遊戲要往哪一邊輪流。
+      ${first.name} 的任務卡總分是 <b class="mono">${min}</b> 分，全場最低，並由 ${first.name} 先手。
+    </p>
+    <h3>每台機器人的起始面向</h3>
+    <p style="color:var(--ink-3);font-size:.8rem;margin:0 0 .5rem">機器人擺上 CPU 起始點後，可以自由決定一開始面對哪個方向。</p>
+    <div style="display:grid;gap:.35rem">
+      ${G.players.map(p=>`<div style="display:flex;align-items:center;gap:.6rem">
+        <span class="av" style="background:${p.color};width:1.6rem;height:1.6rem;border-radius:6px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.75rem;flex:none">${p.id+1}</span>
+        <b style="font-size:.85rem;min-width:5rem">${p.name}</b>
+        <span class="mono" style="font-size:.7rem;color:var(--ink-3);min-width:2.2rem">${coord(p.r,p.c)}</span>
+        <span class="seg" data-face="${p.id}">
+          ${["↑ 上","→ 右","↓ 下","← 左"].map((t,d)=>
+            `<button data-dir="${d}" aria-pressed="${d===p.dir}">${t}</button>`).join("")}
+        </span>
+      </div>`).join("")}
+    </div>
+    <h3>選擇輪流方向</h3>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+      <button class="btn primary big" data-d="1">往下一位（1 → 2 → 3 …）</button>
+      <button class="btn big" data-d="-1">往上一位（3 → 2 → 1 …）</button>
+    </div>
+  `, (sheet)=>{
+    sheet.querySelectorAll("[data-face]").forEach(seg=>{
+      const pid = +seg.dataset.face;
+      seg.querySelectorAll("[data-dir]").forEach(b=>b.onclick=()=>{
+        G.players[pid].dir = +b.dataset.dir;
+        seg.querySelectorAll("[data-dir]").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+        paintRobots();
+      });
+    });
+    sheet.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{
+      G.dirOrder = +b.dataset.d;
+      closeSheet();
+      logLine(`<b>ROUND 1</b> 開始 · 方向 ${G.dirOrder>0?"順序":"逆序"}`, "y");
+      beginTurn();
+    });
+  });
+}
+
+/* =======================================================================
+   5. 地圖 DOM
+   ======================================================================= */
+function buildBoardDOM(){
+  const {rows, cols, cells} = G.board;
+  const frame = $("#boardframe");
+  frame.style.setProperty("--rows", rows);
+  frame.style.setProperty("--cols", cols);
+  const board = $("#board");
+  board.style.setProperty("--rows", rows);
+  board.style.setProperty("--cols", cols);
+
+  const ch = $("#colhdr"); ch.innerHTML=""; ch.style.setProperty("--cols",cols);
+  for(let c=0;c<cols;c++) ch.appendChild(el("i","",colLabel(c)));
+  const rh = $("#rowhdr"); rh.innerHTML=""; rh.style.setProperty("--rows",rows);
+  for(let r=0;r<rows;r++) rh.appendChild(el("i","",String(r+1)));
+
+  board.querySelectorAll(".cell").forEach(n=>n.remove());
+  G.cellEls = [];
+  const layer = $("#robotlayer");
+  for(let r=0;r<rows;r++){
+    const row=[];
+    for(let c=0;c<cols;c++){
+      const d = el("div","cell");
+      d.appendChild(el("div","pad"));
+      d.dataset.r=r; d.dataset.c=c;
+      board.insertBefore(d, layer);
+      row.push(d);
+      paintCell(r,c,d);
+    }
+    G.cellEls.push(row);
+  }
+  layer.innerHTML="";
+  layer.style.setProperty("--rows",rows);
+  layer.style.setProperty("--cols",cols);
+  G.robotEls = G.players.map(p=>{
+    const d = el("div","robot");
+    d.style.setProperty("--pc", p.color);
+    d.innerHTML = `<div class="body">${p.id+1}</div><div class="rot"><span class="nose"></span></div>`;
+    layer.appendChild(d);
+    return d;
+  });
+  paintRobots();
+  fitBoard();
+}
+
+const GUTTER = 22.4;   /* 1.15rem 座標欄 + .25rem gap */
+function fitBoard(){
+  if(!G) return;
+  const wrap = document.querySelector(".boardpanel");
+  const frame = $("#boardframe");
+  const cs = getComputedStyle(wrap);
+  const availW = wrap.clientWidth  - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = wrap.clientHeight - parseFloat(cs.paddingTop)  - parseFloat(cs.paddingBottom);
+  const {rows, cols} = G.board;
+  const cell = Math.max(22, Math.floor(Math.min((availW-GUTTER)/cols, (availH-GUTTER)/rows)));
+  frame.style.width  = (cell*cols + GUTTER) + "px";
+  frame.style.height = (cell*rows + GUTTER) + "px";
+}
+window.addEventListener("resize", fitBoard);
+document.addEventListener("transitionend", (e)=>{
+  if(e.target.classList && e.target.classList.contains("stage")) fitBoard();
+});
+
+function paintCell(r,c,node){
+  const cell = G.board.cells[r][c];
+  const d = node || G.cellEls[r][c];
+  d.className = "cell " + (cell.type==="wall"?"wall":cell.type==="cpu"?"cpu":cell.type==="tunnel"?"tunnel":"");
+  const pad = d.firstChild;
+  pad.dataset.lab = cell.wall || "";
+  pad.dataset.t = cell.tunnel || "";
+  pad.innerHTML = cell.res ? `<span class="res ${cell.res}">${RES[cell.res].ch}</span>` : "";
+}
+function paintRobots(){
+  G.players.forEach((p,i)=>{
+    const d = G.robotEls[i];
+    d.style.setProperty("--rr", p.r);
+    d.style.setProperty("--rc", p.c);
+    d.classList.toggle("active", i===G.cur);
+    d.querySelector(".rot").style.transform = `rotate(${p.dir*90}deg)`;
+  });
+}
+
+/* =======================================================================
+   6. 回合流程與介面渲染
+   ======================================================================= */
+function P(){ return G.players[G.cur]; }
+
+function beginTurn(){
+  G.phase = "program";
+  G.program = [];
+  G.pending = [];
+  G.discardMode = false;
+  G.discardSel = new Set();
+  G.viewPlayer = null;
+  $("#log").innerHTML = "";
+  const p = P();
+  logLine(`— <b>${p.name}</b> 的回合 · 位置 <b>${coord(p.r,p.c)}</b> · 面向 <b>${DIRNAME[p.dir]}</b> —`);
+  renderAll();
+  banner(`輪到 ${p.name}`);
+}
+
+function renderAll(){ renderTop(); renderProgram(); renderHand(); renderRail(); paintRobots(); }
+
+function renderTop(){
+  const p = P();
+  $("#roundLbl").textContent = "ROUND " + G.round;
+  const dot = $("#turnDot"); dot.textContent = p.id+1; dot.style.background = p.color;
+  $("#turnName").textContent = p.name;
+  $("#phaseLbl").textContent = G.phase==="program" ? "排程中" : G.phase==="run" ? "執行中" : "整理中";
+
+  if(cfg.endMode === "res"){
+    const left = countRes();
+    $("#meterLbl").textContent = `場上資源 ${left}`;
+    $("#meterBar").style.width = (100 - left/Math.max(1,G.startRes||left)*100) + "%";
+  }else{
+    const best = Math.max(...G.players.map(x=>x.score));
+    $("#meterLbl").textContent = `最高 ${best}/${cfg.target} 分`;
+    $("#meterBar").style.width = Math.min(100, best/cfg.target*100) + "%";
+  }
+  renderGuide();
+}
+
+/* =======================================================================
+   6b. 回合引導橫幅
+   ======================================================================= */
+const STEPS = [
+  {k:"program", t:"排程"},
+  {k:"run",     t:"執行"},
+  {k:"allot",   t:"分配資源"},
+  {k:"tidy",    t:"整理換人"},
+];
+function badRedCards(){
+  return G.program.filter((id,i)=>{
+    if(CARDMAP[id].g !== "red") return false;
+    const b = G.program[i-1] && CARDMAP[G.program[i-1]].g === "orange";
+    const a = G.program[i+1] && CARDMAP[G.program[i+1]].g === "orange";
+    return !(a && b);
+  }).map(id=>CARDMAP[id].nm);
+}
+function guideTip(){
+  const p = P();
+  const nextP = G.players[(G.cur + G.dirOrder + G.players.length) % G.players.length];
+  switch(G.phase){
+    case "program":{
+      const left = cfg.slots - G.program.length;
+      const bad = badRedCards();
+      if(bad.length) return `<span class="warn">⚠ ${bad.join("、")} 還沒被夾住</span>：紅卡必須排成「<b>橘 → 紅 → 橘</b>」才會生效，否則執行時會直接失效。`;
+      if(!G.program.length) return `輪到 <b>${p.name}</b>：從下面的手牌<b>點一下</b>把指令放進程式區，最多 ${cfg.slots} 張，由上往下依序執行。`;
+      return `已排 <b>${G.program.length}</b> 張，還可以放 <b>${left}</b> 張。點程式區的卡片可以收回手牌；排好就按 <kbd>執行 ▶</kbd>。`;
+    }
+    case "run":
+      return `機器人正在依序執行指令——右邊的<b>執行紀錄</b>會一行一行告訴你發生了什麼事。`;
+    case "allot":
+      return `把撿到的資源放上任務卡（右邊看得到每張還缺什麼），用不到的先丟暫存卡。<b>暫存卡結算不計分</b>。`;
+    case "tidy":{
+      const canSwap = RESKEYS.reduce((s,k)=>s+p.buffer[k],0) >= 2;
+      return `這回合走完了。還可以：${canSwap?`按 <kbd>2 換 1</kbd> 換資源、`:""}按 <kbd>選擇要棄掉的牌</kbd> 汰換手牌。完成後按 <kbd>結束回合 →</kbd> 換 <b>${nextP.name}</b>。`;
+    }
+  }
+  return "";
+}
+function renderGuide(){
+  if(!G) return;
+  const idx = Math.max(0, STEPS.findIndex(x=>x.k===G.phase));
+  $("#gsteps").innerHTML = STEPS.map((x,i)=>
+    `<span class="gstep${i<idx?" done":""}${i===idx?" now":""}"><span class="n">${i<idx?"✓":i+1}</span>${x.t}</span>`
+  ).join('<span class="garrow">›</span>');
+  $("#gtip").innerHTML = guideTip();
+}
+
+function cardFace(id, mini){
+  const c = CARDMAP[id];
+  if(mini) return `<span class="tag">${c.tag}</span><span class="txt"><span class="nm">${c.nm}</span><br><span class="cd">${c.cd}</span></span>`;
+  return `<span class="tag">${c.tag}</span><span class="nm">${c.nm}</span><span class="sub">${c.sub}</span><span class="cd">${c.cd}</span>`;
+}
+
+function renderProgram(){
+  const host = $("#progslots"); host.innerHTML="";
+  for(let i=0;i<cfg.slots;i++){
+    const slot = el("div","slot");
+    slot.appendChild(el("span","ln", String(i+1).padStart(2,"0")));
+    const id = G.program[i];
+    if(id){
+      slot.classList.add("filled");
+      const mc = el("button","minicard c-"+CARDMAP[id].g, cardFace(id,true));
+      mc.title = "點一下收回手牌";
+      mc.onclick = ()=>{ if(G.phase!=="program") return; G.program.splice(i,1); renderProgram(); renderHand(); };
+      slot.appendChild(mc);
+    }else{
+      slot.appendChild(el("span","empty","空"));
+    }
+    slot.dataset.i = i;
+    host.appendChild(slot);
+  }
+  $("#progCount").textContent = `${G.program.length}/${cfg.slots}`;
+  $("#btnRun").disabled = G.phase!=="program" || G.program.length===0;
+  $("#btnClear").disabled = G.phase!=="program" || G.program.length===0;
+  renderGuide();
+}
+
+function renderHand(){
+  const p = P();
+  const host = $("#hand"); host.innerHTML="";
+  const used = {};
+  G.program.forEach(id=>{ used[id]=(used[id]||0)+1; });
+  const left = {...used};
+  p.hand.forEach((id, idx)=>{
+    const b = el("button","card c-"+CARDMAP[id].g, cardFace(id));
+    if(left[id]>0){ left[id]--; b.disabled = true; b.style.visibility="hidden"; }
+    else{
+      if(G.discardMode){
+        b.classList.toggle("sel", G.discardSel.has(idx));
+        b.onclick = ()=>{ G.discardSel.has(idx)?G.discardSel.delete(idx):G.discardSel.add(idx); renderHand(); };
+      }else{
+        b.disabled = G.phase!=="program";
+        b.onclick = ()=>{
+          if(G.program.length>=cfg.slots){ banner("程式區已滿","bad"); return; }
+          G.program.push(id); renderProgram(); renderHand();
+        };
+      }
+    }
+    host.appendChild(b);
+  });
+  $("#handHint").textContent = G.discardMode ? "點卡片標記／取消棄牌"
+    : G.phase==="program" ? "點卡片 → 放進程式區" : "本回合已執行完畢";
+  $("#btnDiscardMode").textContent = G.discardMode ? `完成選擇（${G.discardSel.size} 張）` : "選擇要棄掉的牌";
+}
+
+/* 一張任務卡還缺哪些資源（展開成清單） */
+function lackOf(m){
+  return Object.entries(m.b.need).flatMap(([k,n])=>
+    Array.from({length:Math.max(0, n - m.have[k])}, ()=>k));
+}
+function nearest(p){
+  return Math.min(...p.missions.map(m=>lackOf(m).length));
+}
+function missionCard(m){
+  const done = isDone(m);
+  const lack = lackOf(m);
+  let pips = "";
+  Object.entries(m.b.need).forEach(([k,n])=>{
+    for(let i=0;i<n;i++){
+      const filled = i < m.have[k];
+      pips += `<span class="pip ${filled?k:"off "+k}">${RES[k].ch}</span>`;
+    }
+  });
+  const got = Object.entries(m.b.need).reduce((s,[k,n])=>s+Math.min(n,m.have[k]),0);
+  const total = Object.values(m.b.need).reduce((a,b)=>a+b,0);
+  return `<div class="mission${done?" done":""}">
+    <div class="top"><span class="bn">${m.b.nm}</span><span class="pt">${m.b.pts} 分</span></div>
+    <div class="needs">${pips}</div>
+    <div class="lack">${done
+      ? "已收齊，可以蓋了"
+      : `還缺 ${lack.length} 個 ${lack.map(k=>resPip(k,"off "+k)).join("")}
+         <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;opacity:.7">${got}/${total}</span>`}</div>
+  </div>`;
+}
+
+function renderRail(){
+  const me = P();
+  const view = G.players[G.viewPlayer ?? G.cur];
+
+  const sb = $("#scoreboard"); sb.innerHTML="";
+  G.players.forEach(p=>{
+    const row = el("button","pscore clickable"
+      + (p.id===G.cur?" now":"")
+      + (p.id===view.id && view.id!==G.cur ? " peek":""));
+    row.title = `看 ${p.name} 的任務卡`;
+    row.innerHTML = `<span class="av" style="background:${p.color}">${p.id+1}</span>
+      <span class="nm">${p.name}</span>
+      <span class="lackn">差 ${nearest(p)}</span>
+      <span class="sc">${p.score}</span>`;
+    row.onclick = ()=>{ G.viewPlayer = (G.viewPlayer===p.id) ? null : p.id; renderRail(); };
+    sb.appendChild(row);
+  });
+
+  const peeking = view.id !== G.cur;
+  $("#missionOwner").textContent = view.name + (peeking ? "（檢視中）" : "");
+  const ms = $("#missions");
+  const bufItems = (x)=>RESKEYS.flatMap(k=>Array.from({length:x.buffer[k]},()=>k));
+  ms.innerHTML =
+    (peeking ? `<div class="peekbar">
+        <span class="av" style="background:${view.color};width:1.3rem;height:1.3rem;border-radius:5px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.7rem">${view.id+1}</span>
+        <b>正在看 ${view.name} 的任務卡</b>
+        <button class="btn ghost" style="padding:.2rem .5rem;font-size:.75rem" data-back="1">回到 ${me.name}</button>
+      </div>` : "")
+    + view.missions.map(missionCard).join("")
+    + (peeking ? `<div style="font-size:.75rem;color:var(--ink-3);display:flex;align-items:center;gap:.3rem;flex-wrap:wrap">
+        ${view.name} 的暫存卡：${bufItems(view).map(k=>resPip(k)).join("") || "（空）"}</div>` : "");
+  const back = ms.querySelector("[data-back]");
+  if(back) back.onclick = ()=>{ G.viewPlayer = null; renderRail(); };
+
+  const buf = $("#buffer");
+  const items = bufItems(me);
+  buf.innerHTML = items.length ? items.map(k=>resPip(k)).join("") : `<span style="font-size:.75rem;color:var(--ink-3)">（空）</span>`;
+  $("#btnSwap").disabled = G.phase==="run" || items.length<2;
+}
+
+function isDone(m){
+  return Object.entries(m.b.need).every(([k,n])=>m.have[k]>=n);
+}
+function countRes(){
+  let n=0;
+  G.board.cells.forEach(row=>row.forEach(c=>{ if(c.res) n++; }));
+  return n;
+}
+
+/* =======================================================================
+   7. 移動與執行引擎
+   ======================================================================= */
+const SPD = ()=>SPEEDS[cfg.speed].v;
+function cellOf(r,c){
+  const b=G.board;
+  if(r<0||c<0||r>=b.rows||c>=b.cols) return null;
+  return b.cells[r][c];
+}
+function front(p){ const [dr,dc]=DIRS[p.dir]; return cellOf(p.r+dr, p.c+dc); }
+function robotAt(r,c,not){ return G.players.find(x=>x.r===r && x.c===c && x!==not); }
+function frontFree(p){
+  const c = front(p);
+  return !!c && c.type!=="wall" && !robotAt(c.r,c.c,p);
+}
+async function turn(p, d){
+  p.dir = ((p.dir + d) % 4 + 4) % 4;
+  paintRobots();
+  await sleep(SPD()*0.45);
+}
+function collectHere(p){
+  const cell = G.board.cells[p.r][p.c];
+  if(!cell.res) return;
+  G.pending.push(cell.res);
+  logLine(`${coord(p.r,p.c)} 取得 <b>${RES[cell.res].name}</b>`, "g");
+  cell.res = null;
+  paintCell(p.r,p.c);
+}
+async function landed(p, allowTunnel){
+  collectHere(p);
+  const cell = G.board.cells[p.r][p.c];
+  if(allowTunnel !== false && cell.type==="tunnel"){
+    const t = G.board.tunnels;
+    const idx = t.findIndex(x=>x.r===p.r && x.c===p.c);
+    for(let k=1;k<t.length;k++){
+      const dst = t[(idx+k)%t.length];
+      if(!robotAt(dst.r,dst.c,p)){
+        p.r=dst.r; p.c=dst.c;
+        logLine(`SIM 地道傳送 → <b>${coord(p.r,p.c)}</b>`, "y");
+        paintRobots();
+        await sleep(SPD()*0.6);
+        collectHere(p);
+        return;
+      }
+    }
+    logLine("地道另一端被佔住了，無法傳送", "r");
+  }
+}
+async function stepForward(p, n){
+  for(let i=0;i<n;i++){
+    if(!frontFree(p)){
+      const c = front(p);
+      if(!c) logLine("前方是地圖邊界，停下", "r");
+      else if(c.type==="wall") logLine(`前方 ${coord(c.r,c.c)} 是 ${c.wall}，不可通過`, "r");
+      else logLine(`前方 ${coord(c.r,c.c)} 有其他機器人，停下`, "r");
+      await sleep(SPD()*0.4);
+      return;
+    }
+    const [dr,dc] = DIRS[p.dir];
+    p.r += dr; p.c += dc;
+    paintRobots();
+    await sleep(SPD()*0.55);
+    await landed(p);
+  }
+}
+
+function hi(i){
+  document.querySelectorAll("#progslots .slot").forEach((s,k)=>s.classList.toggle("running", k===i));
+}
+
+async function runSeq(prog, p, base){
+  let i = 0;
+  while(i < prog.length){
+    const id = prog[i], c = CARDMAP[id];
+    hi(base + i);
+    await sleep(SPD()*0.25);
+
+    if(c.g === "yellow"){
+      const k = Math.min(c.k, prog.length - i - 1);
+      if(k <= 0){
+        logLine("重複卡後面沒有卡片可以包住 → 跳過", "r");
+        i++; continue;
+      }
+      logLine(`<b>${c.cd}</b> 包住接下來 ${k} 張，共跑 ${c.times} 次`, "y");
+      const block = prog.slice(i+1, i+1+k);
+      for(let t=0; t<c.times; t++){
+        logLine(`　└ 第 ${t+1} / ${c.times} 次`, "y");
+        await runSeq(block, p, base + i + 1);
+      }
+      hi(base + i);
+      i += 1 + k;
+
+    }else if(c.g === "green"){
+      const cond = COND[c.cond];
+      const yes = cond.test(p);
+      logLine(`<b>${c.cd}</b> ${cond.lbl} → <b>${yes?"是":"否"}</b>`, yes?"g":"r");
+      await sleep(SPD()*0.5);
+      const a = ACT[yes ? c.yes : c.no];
+      logLine(`　└ 執行 ${a.lbl}`);
+      await a.run(p);
+      i++;
+
+    }else if(c.g === "orange"){
+      i++;   // 橘卡本身不動作，由紅卡判定是否被夾住
+
+    }else if(c.g === "red"){
+      const before = i > 0 && CARDMAP[prog[i-1]].g === "orange";
+      const after  = i < prog.length-1 && CARDMAP[prog[i+1]].g === "orange";
+      if(before && after){
+        logLine(`<b>call( ${c.nm} )</b> 副程式啟動`, "y");
+        await RED[c.fn](p);
+      }else{
+        logLine(`${c.nm} 沒有被兩張橘色「發動」卡夾住 → 無效`, "r");
+        banner(`${c.nm} 必須是「橘 → 紅 → 橘」才會生效`, "bad");
+        await sleep(1100);
+      }
+      i++;
+
+    }else{
+      const a = ACT[c.act];
+      logLine(`<b>${c.cd}</b> ${a.lbl}`);
+      await a.run(p);
+      i++;
+    }
+  }
+}
+
+/* --- 紅卡副程式 ------------------------------------------------------ */
+const RED = {
+  async teleport(p){
+    const t = await pickCell(c => c.type!=="wall" && !robotAt(c.r,c.c,p), "專車接送：點選地圖上要傳送過去的格子");
+    p.r = t.r; p.c = t.c;
+    logLine(`專車接送 → <b>${coord(p.r,p.c)}</b>`, "y");
+    paintRobots(); await sleep(SPD()*0.6);
+    await landed(p);
+  },
+  async swap(p){
+    const o = await pickPlayer("交換卡：選擇要跟誰交換位置", p);
+    if(!o) return;
+    const tr=p.r, tc=p.c;
+    p.r=o.r; p.c=o.c; o.r=tr; o.c=tc;
+    logLine(`與 <b>${o.name}</b> 交換位置 → ${coord(p.r,p.c)}`, "y");
+    paintRobots(); await sleep(SPD()*0.7);
+    await landed(p);
+  },
+  async magnet(p){
+    let n = 0;
+    for(const [dr,dc] of DIRS){
+      const c = cellOf(p.r+dr, p.c+dc);
+      if(c && c.res){
+        G.pending.push(c.res);
+        logLine(`磁鐵吸走 ${coord(c.r,c.c)} 的 <b>${RES[c.res].name}</b>`, "g");
+        c.res = null; paintCell(c.r,c.c); n++;
+        await sleep(SPD()*0.3);
+      }
+    }
+    if(!n) logLine("四周沒有資源，磁鐵空手而回", "r");
+  },
+  async virus(p){
+    const got = await pickSteal(p);
+    if(!got){ logLine("沒有可以偷的資源", "r"); return; }
+    const o = G.players[got.o];
+    if(got.mi === -1){ o.buffer[got.k]--; }
+    else{ o.missions[got.mi].have[got.k]--; }
+    G.pending.push(got.k);
+    logLine(`病毒從 <b>${o.name}</b> 的${got.mi===-1?"暫存卡":`「${o.missions[got.mi].b.nm}」`}偷走 <b>${RES[got.k].name}</b>`, "y");
+    renderRail();
+  },
+  async boost(p){
+    logLine("加速器啟動，直線衝刺 4 格", "y");
+    await stepForward(p, 4);
+  },
+};
+
+/* =======================================================================
+   8. 覆蓋層與互動選取
+   ======================================================================= */
+function openSheet(html, wire){
+  const sheet = $("#ovSheet");
+  sheet.innerHTML = html;
+  $("#ov").classList.add("on");
+  wire && wire(sheet);
+}
+function closeSheet(){ $("#ov").classList.remove("on"); }
+
+function pickCell(filter, msg){
+  return new Promise(resolve=>{
+    banner(msg);
+    const marked = [];
+    const onClick = (e)=>{
+      const d = e.currentTarget;
+      cleanup();
+      resolve(G.board.cells[+d.dataset.r][+d.dataset.c]);
+    };
+    const cleanup = ()=>marked.forEach(d=>{ d.classList.remove("pick"); d.removeEventListener("click", onClick); });
+    for(let r=0;r<G.board.rows;r++) for(let c=0;c<G.board.cols;c++){
+      if(!filter(G.board.cells[r][c])) continue;
+      const d = G.cellEls[r][c];
+      d.classList.add("pick");
+      d.addEventListener("click", onClick);
+      marked.push(d);
+    }
+  });
+}
+function pickPlayer(msg, exclude){
+  const others = G.players.filter(x=>x!==exclude);
+  if(!others.length) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    openSheet(`<h2>${msg}</h2>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem">
+        ${others.map(o=>`<button class="btn big" data-p="${o.id}">
+          <span class="av" style="background:${o.color};width:1.4rem;height:1.4rem;border-radius:5px;display:grid;place-items:center;color:#fff;font-weight:900;font-size:.72rem">${o.id+1}</span>
+          ${o.name} <span class="mono" style="opacity:.6">${coord(o.r,o.c)}</span></button>`).join("")}
+      </div>`, (sh)=>{
+      sh.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
+        closeSheet(); resolve(G.players[+b.dataset.p]);
+      });
+    });
+  });
+}
+function pickSteal(me){
+  const others = G.players.filter(x=>x!==me);
+  const pipsFor = (o)=>{
+    let html = "";
+    o.missions.forEach((m,mi)=>{
+      const inner = RESKEYS.flatMap(k=>Array.from({length:m.have[k]},()=>
+        `<span class="pip ${k} target" data-o="${o.id}" data-mi="${mi}" data-k="${k}">${RES[k].ch}</span>`)).join("");
+      if(inner) html += `<span style="display:inline-flex;align-items:center;gap:.25rem;margin-right:.7rem">
+        <span style="font-size:.72rem;color:var(--ink-3)">${m.b.nm}</span>${inner}</span>`;
+    });
+    const buf = RESKEYS.flatMap(k=>Array.from({length:o.buffer[k]},()=>
+      `<span class="pip ${k} target" data-o="${o.id}" data-mi="-1" data-k="${k}">${RES[k].ch}</span>`)).join("");
+    if(buf) html += `<span style="display:inline-flex;align-items:center;gap:.25rem">
+      <span style="font-size:.72rem;color:var(--ink-3)">暫存</span>${buf}</span>`;
+    return html;
+  };
+  const rows = others.map(o=>({o, html:pipsFor(o)})).filter(x=>x.html);
+  if(!rows.length) return Promise.resolve(null);
+  return new Promise(resolve=>{
+    openSheet(`<h2>病毒：偷走別人 1 個已收集的資源</h2>
+      <p style="color:var(--ink-2);margin:.3rem 0 0">點一下要偷走的資源圖示。任務卡上和暫存卡上的都能偷。</p>
+      <div style="display:grid;gap:.5rem;margin-top:1rem">
+      ${rows.map(({o,html})=>`<div class="pscore">
+          <span class="av" style="background:${o.color}">${o.id+1}</span>
+          <span class="nm">${o.name}</span>
+          <span class="needs" style="gap:.15rem">${html}</span></div>`).join("")}
+      </div>
+      <div style="margin-top:1rem"><button class="btn ghost" data-skip="1">放棄，不偷</button></div>`, (sh)=>{
+      sh.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{
+        closeSheet(); resolve({o:+b.dataset.o, mi:+b.dataset.mi, k:b.dataset.k});
+      });
+      sh.querySelector("[data-skip]").onclick = ()=>{ closeSheet(); resolve(null); };
+    });
+  });
+}
+
+/* =======================================================================
+   9. 資源分配 / 任務卡結算
+   ======================================================================= */
+function autoTarget(p, k){
+  let best = -1, bestPts = -1;
+  p.missions.forEach((m,i)=>{
+    const need = m.b.need[k];
+    if(need && m.have[k] < need){
+      // 優先補「差最少就能完成」的任務卡
+      const remain = Object.entries(m.b.need).reduce((s,[kk,n])=>s+Math.max(0,n-m.have[kk]),0);
+      const score = 1000 - remain*10 + m.b.pts;
+      if(score > bestPts){ bestPts = score; best = i; }
+    }
+  });
+  return best;
+}
+function place(p, k, mi){
+  if(mi < 0){ p.buffer[k]++; logLine(`　└ <b>${RES[k].name}</b> 放到暫存卡`); }
+  else{
+    const m = p.missions[mi];
+    m.have[k]++;
+    logLine(`　└ <b>${RES[k].name}</b> 放到「${m.b.nm}」`, "g");
+    if(isDone(m)) completeMission(p, mi);
+  }
+}
+function completeMission(p, mi){
+  const m = p.missions[mi];
+  p.score += m.b.pts;
+  p.built.push(m.b);
+  logLine(`🏗 <b>${p.name}</b> 蓋好了「${m.b.nm}」，得 ${m.b.pts} 分！`, "g");
+  banner(`${p.name} 蓋好了 ${m.b.nm}，+${m.b.pts} 分`, "good");
+  p.missions[mi] = G.mdeck.length
+    ? {b:G.mdeck.pop(), have:{wood:0,iron:0,stone:0,sand:0}}
+    : {b:BUILDINGS[rnd(BUILDINGS.length)], have:{wood:0,iron:0,stone:0,sand:0}};
+}
+
+function allocate(){
+  return new Promise(resolve=>{
+    const p = P();
+    const step = ()=>{
+      if(!G.pending.length){ closeSheet(); renderRail(); renderTop(); resolve(); return; }
+      const k = G.pending[0];
+      const opts = p.missions.map((m,i)=>{
+        const need = m.b.need[k];
+        if(!need || m.have[k] >= need) return "";
+        const left = Object.entries(m.b.need).reduce((s,[kk,n])=>s+Math.max(0,n-m.have[kk]),0);
+        return `<button class="btn big" data-mi="${i}">放進「${m.b.nm}」
+          <span class="mono" style="opacity:.65">還差 ${left} 個 · ${m.b.pts}分</span></button>`;
+      }).filter(Boolean).join("");
+      openSheet(`
+        <h2>分配資源 <span class="mono" style="color:var(--ink-3);font-size:.9rem">還有 ${G.pending.length} 個</span></h2>
+        <div style="display:flex;align-items:center;gap:.7rem;margin:.9rem 0 .3rem">
+          <span class="pip ${k}" style="width:2.6rem;height:2.6rem;border-radius:10px;font-size:1.3rem">${RES[k].ch}</span>
+          <b style="font-size:1.1rem">${RES[k].name}</b>
+        </div>
+        <h3>放到哪裡？</h3>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          ${opts || `<span style="color:var(--ink-3);font-size:.85rem">目前的任務卡都不需要這個資源</span>`}
+          <button class="btn big" data-mi="-1">放到暫存卡 <span class="mono" style="opacity:.65">2 換 1 用</span></button>
+        </div>
+        <div style="margin-top:1.2rem;display:flex;gap:.5rem;align-items:center">
+          <button class="btn ghost" data-auto="1">剩下的全部自動分配</button>
+          <span class="eyebrow">提醒：結算時暫存卡上的資源不計分</span>
+        </div>
+      `, (sh)=>{
+        sh.querySelectorAll("[data-mi]").forEach(b=>b.onclick=()=>{
+          G.pending.shift(); place(p, k, +b.dataset.mi); step();
+        });
+        sh.querySelector("[data-auto]").onclick = ()=>{
+          while(G.pending.length){
+            const kk = G.pending.shift();
+            place(p, kk, autoTarget(p, kk));
+          }
+          step();
+        };
+      });
+    };
+    step();
+  });
+}
+
+function doSwap2for1(){
+  const p = P();
+  const have = RESKEYS.flatMap(k=>Array.from({length:p.buffer[k]},()=>k));
+  if(have.length < 2){ banner("暫存卡上至少要有 2 個資源","bad"); return; }
+  const sel = [];
+  const render = ()=>{
+    openSheet(`
+      <h2>暫存卡 2 換 1</h2>
+      <p style="color:var(--ink-2);margin:.3rem 0 0">先點 2 個要交出去的資源，再選你想換的 1 個資源。</p>
+      <h3>交出（已選 ${sel.length}/2）</h3>
+      <div class="needs">${have.map((k,i)=>
+        `<span class="pip ${k} ${sel.includes(i)?"target":""}" data-i="${i}" style="cursor:pointer">${RES[k].ch}</span>`).join("")}</div>
+      <h3>換成</h3>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        ${RESKEYS.map(k=>`<button class="btn big" data-get="${k}" ${sel.length===2?"":"disabled"}>
+          <span class="pip ${k}">${RES[k].ch}</span> ${RES[k].name}</button>`).join("")}
+      </div>
+      <div style="margin-top:1.1rem"><button class="btn ghost" data-cancel="1">取消</button></div>
+    `, (sh)=>{
+      sh.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{
+        const i = +b.dataset.i;
+        if(sel.includes(i)) sel.splice(sel.indexOf(i),1);
+        else if(sel.length<2) sel.push(i);
+        render();
+      });
+      sh.querySelectorAll("[data-get]").forEach(b=>b.onclick=async()=>{
+        const give = sel.map(i=>have[i]);
+        give.forEach(k=>p.buffer[k]--);
+        const k = b.dataset.get;
+        logLine(`2 換 1：交出 ${give.map(x=>RES[x].name).join("、")} → 換得 <b>${RES[k].name}</b>`, "y");
+        G.pending.push(k);
+        renderRail();
+        await allocate();
+        renderAll();
+        checkEnd();
+      });
+      sh.querySelector("[data-cancel]").onclick = closeSheet;
+    });
+  };
+  render();
+}
+
+/* =======================================================================
+   10. 回合控制與結束判定
+   ======================================================================= */
+async function runProgram(){
+  if(G.phase !== "program" || !G.program.length || G.running) return;
+  G.running = true;
+  G.phase = "run";
+  G.viewPlayer = null;
+  renderTop(); renderProgram(); renderHand(); renderRail();
+  const p = P();
+  logLine(`▶ 開始執行 ${G.program.length} 張指令`, "y");
+  try{
+    await runSeq(G.program, p, 0);
+  }finally{
+    hi(-1);
+    G.running = false;
+  }
+  logLine(`■ 執行結束 · 位置 <b>${coord(p.r,p.c)}</b> · 面向 <b>${DIRNAME[p.dir]}</b>`, "y");
+  if(G.pending.length){ G.phase = "allot"; renderTop(); await allocate(); }
+  G.phase = "tidy";
+  renderAll();
+  if(!checkEnd()) banner("可以 2 換 1、選擇棄牌，然後結束回合");
+}
+
+function endTurn(){
+  if(G.running) return;
+  if(G.phase === "program" && G.program.length){
+    banner("程式區還有卡片沒執行，先按「執行 ▶」","bad"); return;
+  }
+  const p = P();
+  // 1) 先依原始索引丟掉手動選取的棄牌
+  [...G.discardSel].sort((a,b)=>b-a).forEach(i=>{
+    G.discard.push(p.hand[i]); p.hand.splice(i,1);
+  });
+  // 2) 再丟掉這回合出過的卡
+  G.program.forEach(id=>{
+    const i = p.hand.indexOf(id);
+    if(i>=0){ p.hand.splice(i,1); G.discard.push(id); }
+  });
+  // 3) 補滿 8 張
+  while(p.hand.length < 8){
+    if(!G.deck.length){
+      if(!G.discard.length) break;
+      G.deck = shuffle(G.discard); G.discard = [];
+      logLine("牌堆用完，棄牌堆洗回牌堆", "y");
+    }
+    p.hand.push(G.deck.pop());
+  }
+  G.turns = (G.turns||0) + 1;
+  G.round = Math.floor(G.turns / G.players.length) + 1;
+  G.cur = (G.cur + G.dirOrder + G.players.length) % G.players.length;
+  if(checkEnd()) return;
+  beginTurn();
+}
+
+function checkEnd(){
+  if(G.over) return true;
+  const byScore = G.players.some(p=>p.score >= cfg.target);
+  const byRes = countRes() === 0;
+  const hit = cfg.endMode==="score" ? byScore
+            : cfg.endMode==="res"   ? byRes
+            : (byScore || byRes);
+  if(!hit) return false;
+  G.over = true;
+  finalScore(byScore && (cfg.endMode!=="res") ? "score" : "res");
+  return true;
+}
+
+function finalScore(reason){
+  const rows = G.players.map(p=>{
+    const leftover = p.missions.reduce((s,m)=>s + RESKEYS.reduce((t,k)=>t+m.have[k],0), 0);
+    return {p, build:p.score, leftover, total:p.score + leftover};
+  }).sort((a,b)=> b.total-a.total || b.build-a.build);
+  const top = rows[0].total;
+  openSheet(`
+    <h2>遊戲結束</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0">
+      ${reason==="score" ? `有人達到目標積分 <b>${cfg.target}</b> 分，遊戲立刻結束。`
+                         : "地圖上的資源全部被採集完畢，遊戲結束。"}
+      共進行了 <b>${G.round}</b> 個回合。
+    </p>
+    <h3>結算</h3>
+    <div class="rank">
+      ${rows.map((r,i)=>`
+        <div class="rankrow ${r.total===top?"win":""}">
+          <span class="pos">${i+1}</span>
+          <span class="av" style="background:${r.p.color}">${r.p.id+1}</span>
+          <span>
+            <b style="font-size:1rem">${r.p.name}</b>
+            <span class="brk" style="display:block">完成 ${r.p.built.length} 棟：${r.p.built.map(b=>b.nm).join("、")||"—"}</span>
+          </span>
+          <span class="brk">建築 ${r.build} ＋ 未完成資源 ${r.leftover}</span>
+          <span class="tot">${r.total}</span>
+        </div>`).join("")}
+    </div>
+    <p style="color:var(--ink-3);font-size:.8rem;margin-top:.9rem">
+      計分：完成的任務卡拿滿分；未完成的任務卡上每個已收集的資源算 1 分；暫存卡上的資源不計分。
+    </p>
+    <div style="display:flex;gap:.6rem;margin-top:1.2rem;flex-wrap:wrap">
+      <button class="btn primary big" data-again="1">回到設定，再玩一局</button>
+      <button class="btn ghost" data-look="1">看一下最後的地圖</button>
+    </div>
+  `, (sh)=>{
+    sh.querySelector("[data-again]").onclick = ()=>location.reload();
+    sh.querySelector("[data-look]").onclick = ()=>{
+      closeSheet();
+      banner("按上方「結束遊戲」可以再看一次結算");
+    };
+  });
+}
+
+/* =======================================================================
+   11. 規則說明
+   ======================================================================= */
+function cardChip(c){
+  return `<span class="minicard c-${c.g}" style="cursor:default;display:inline-flex;vertical-align:middle">
+    <span class="tag">${c.tag}</span>
+    <span class="txt"><span class="nm">${c.nm}</span><br><span class="cd">${c.cd}</span></span></span>`;
+}
+function showRules(){
+  const groups = [
+    ["white","白色卡 · 循序結構","一行一行照順序做完。程式最基本的樣子。"],
+    ["yellow","黃色卡 · 重複結構","迴圈。把接下來幾張卡包起來，重複跑幾次。"],
+    ["green","綠色卡 · 選擇結構","條件判斷。先看地圖狀況，再決定要做哪一件事。"],
+    ["orange","橘色卡 · 發動","呼叫的動作本身。必須放在紅卡的前後兩側。"],
+    ["red","紅色卡 · 副程式","強大的特殊能力，但一定要被兩張橘卡夾住才會生效。"],
+  ];
+  openSheet(`
+    <h2>怎麼玩</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0;max-width:62ch">
+      你是一群要蓋房子的機器人。用手上的「控制卡」規劃移動路線，把地圖上的
+      ${RESKEYS.map(k=>resPip(k)).join("")} 四種原料搶回來，蓋出任務卡上的建築物換取積分。
+    </p>
+
+    <h3>一個回合做什麼</h3>
+    <table class="ref">
+      <tr><th style="width:5rem">1 排程</th><td>點手牌把卡片放進「程式區」，由上而下就是執行順序（本場最多 ${cfg.slots} 張）。放錯了點程式區的卡片可以收回。</td></tr>
+      <tr><th>2 執行</th><td>按「執行 ▶」，機器人依序跑完。<b>走過的格子上有資源就會自動撿走</b>；撞到 RAM／匯流排或其他機器人就停下。</td></tr>
+      <tr><th>3 分配</th><td>把撿到的資源放上任務卡，或先丟到暫存卡。任務卡集滿就得分，並立刻補一張新的任務卡。</td></tr>
+      <tr><th>4 整理</th><td>可以用暫存卡「2 換 1」換到需要的資源；選擇要棄掉的手牌，然後結束回合，手牌自動補滿 8 張。</td></tr>
+    </table>
+    <p style="color:var(--ink-2);font-size:.84rem;margin:.6rem 0 0">
+      最上方的<b>回合引導</b>會一直告訴你「現在輪到誰、可以做什麼」，並在紅卡沒被橘卡夾住時出聲提醒。
+    </p>
+
+    <h3>看得到什麼</h3>
+    <table class="ref">
+      <tr><th style="width:6rem">自己的任務卡</th><td>右側面板會列出每張任務卡<b>還缺哪幾個資源</b>，以及已收集的進度（例如 2/4）。</td></tr>
+      <tr><th>別人的任務卡</th><td>點一下計分板上任何一位玩家，就能看他的任務卡與暫存卡；計分板的「還差 N」是他最接近完成的一張還缺幾個資源。再點一次或按「回到⋯」就回到自己。</td></tr>
+      <tr><th>畫面太擠？</th><td>每個面板右上角的 <b>－ / ＋</b> 可以收起或還原；整欄收起來時<b>地圖會自動放大</b>。上方的「專注地圖」可以一鍵全部收起，再按一次還原。</td></tr>
+    </table>
+
+    <h3>地圖上有什麼</h3>
+    <div style="display:grid;gap:.3rem">
+      <div class="legendrow"><span class="sw" style="background:var(--chip);color:var(--chip-ink);font-size:.55rem;font-family:'JetBrains Mono',monospace">RAM</span> RAM／匯流排／ROM＝障礙物，不可通過也不能停留。</div>
+      <div class="legendrow"><span class="sw" style="background:color-mix(in srgb,var(--teal) 30%, var(--pad));border:1px solid var(--teal);color:var(--teal);font-size:.5rem;font-family:'JetBrains Mono',monospace">SIM</span> SIM 卡地道，踩到就傳送到下一個地道口（出口有資源一樣會撿走）。</div>
+      <div class="legendrow"><span class="sw" style="border:1px dashed var(--gold);color:var(--gold);font-size:.5rem;font-family:'JetBrains Mono',monospace">CPU</span> 起始點。機器人一開始站在這裡，面朝的方向會顯示在小三角形上。</div>
+      <div class="legendrow"><span class="sw" style="background:var(--r-wood)">木</span><span class="sw" style="background:var(--r-iron)">鐵</span><span class="sw" style="background:var(--r-stone)">石</span><span class="sw" style="background:var(--r-sand)">沙</span> 四種原料。格子座標像 <b class="mono">C4</b> 一樣讀，方便大家一起討論路線。</div>
+    </div>
+
+    <h3>控制卡</h3>
+    ${groups.map(([g,t,d])=>{
+      const on = g==="white" ? true : g==="yellow" ? cfg.enable.yellow : g==="green" ? cfg.enable.green : cfg.enable.red;
+      const list = CARDS.filter(c=>c.g===g);
+      return `<div style="margin-bottom:.8rem;${on?"":"opacity:.4"}">
+        <b style="font-size:.9rem">${t}</b>
+        <span class="eyebrow" style="margin-left:.5rem">${on?"本場開放":"本場未使用"}</span>
+        <div style="color:var(--ink-3);font-size:.78rem;margin:.15rem 0 .35rem">${d}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.35rem">${list.map(cardChip).join("")}</div>
+      </div>`;
+    }).join("")}
+
+    <h3>紅卡怎麼發動</h3>
+    <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">
+      ${cardChip(CARDMAP.o_call)} <b>→</b> ${cardChip(CARDMAP.r_mg)} <b>→</b> ${cardChip(CARDMAP.o_call)}
+      <span style="color:var(--ink-2);font-size:.82rem;margin-left:.5rem">在程式區排成這樣，紅卡才會生效——就像程式裡的 <span class="mono">call( 函式 )</span>。</span>
+    </div>
+
+    <h3>怎麼結束、怎麼算分</h3>
+    <table class="ref">
+      <tr><th style="width:6rem">本場條件</th><td>${ENDMODE[cfg.endMode].lbl}${cfg.endMode!=="res"?`（目標 ${cfg.target} 分）`:""}</td></tr>
+      <tr><th>完成的建築</th><td>拿任務卡上的完整積分。</td></tr>
+      <tr><th>未完成的任務卡</th><td>上面已收集的資源，每個算 1 分。</td></tr>
+      <tr><th>暫存卡</th><td><b style="color:var(--danger)">不計分。</b>所以別囤太多，記得 2 換 1 換成需要的資源。</td></tr>
+    </table>
+    <div style="margin-top:1.2rem"><button class="btn primary big" data-close="1">知道了</button></div>
+  `, (sh)=>{ sh.querySelector("[data-close]").onclick = closeSheet; });
+}
+
+/* =======================================================================
+   11b. 版面收合（縮小 / 還原）
+   ======================================================================= */
+const PANEL_COLS = { prog:["prog","log"], rail:["score","mission","buffer"] };
+const ui = { c:{ guide:false, prog:false, log:false, score:false, mission:false, buffer:false, hand:false } };
+
+function applyUI(){
+  Object.entries(ui.c).forEach(([k,v])=>{
+    const box = document.querySelector(`[data-panelbox="${k}"]`);
+    if(box) box.classList.toggle("collapsed", v);
+    const btn = document.querySelector(`.pmin[data-panel="${k}"]`);
+    if(btn){ btn.textContent = v ? "＋" : "－"; btn.title = v ? "還原" : "縮小"; }
+  });
+  const miniProg = PANEL_COLS.prog.every(k=>ui.c[k]);
+  const miniRail = PANEL_COLS.rail.every(k=>ui.c[k]);
+  $("#colProg").classList.toggle("mini", miniProg);
+  $("#colRail").classList.toggle("mini", miniRail);
+  const st = document.querySelector(".stage");
+  st.style.setProperty("--wProg", miniProg ? "2.9rem" : "236px");
+  st.style.setProperty("--wRail", miniRail ? "2.9rem" : "322px");
+  $("#tray").classList.toggle("collapsed", ui.c.hand);
+  $("#guide").classList.toggle("collapsed", ui.c.guide);
+  const allMin = Object.values(ui.c).every(Boolean);
+  $("#btnFocus").textContent = allMin ? "還原版面" : "專注地圖";
+  requestAnimationFrame(()=>requestAnimationFrame(fitBoard));
+}
+function wireUI(){
+  document.querySelectorAll(".pmin").forEach(b=>b.onclick = ()=>{
+    ui.c[b.dataset.panel] = !ui.c[b.dataset.panel];
+    applyUI();
+  });
+  document.querySelectorAll(".coltab").forEach(b=>b.onclick = ()=>{
+    PANEL_COLS[b.dataset.coltab].forEach(k=>{ ui.c[k] = false; });
+    applyUI();
+  });
+  $("#traytab").onclick = ()=>{ ui.c.hand = false; applyUI(); };
+  $("#btnFocus").onclick = ()=>{
+    const allMin = Object.values(ui.c).every(Boolean);
+    Object.keys(ui.c).forEach(k=>{ ui.c[k] = !allMin; });
+    applyUI();
+  };
+}
+
+/* =======================================================================
+   12. 事件接線
+   ======================================================================= */
+function wire(){
+  wireUI();
+  $("#btnRun").onclick = runProgram;
+  $("#btnClear").onclick = ()=>{ if(G.phase!=="program") return; G.program=[]; renderProgram(); renderHand(); };
+  $("#btnEnd").onclick = endTurn;
+  $("#btnSwap").onclick = ()=>{ if(!G.running) doSwap2for1(); };
+  $("#btnRules").onclick = showRules;
+  $("#btnDiscardMode").onclick = ()=>{
+    if(G.running) return;
+    G.discardMode = !G.discardMode;
+    renderHand();
+  };
+  $("#btnQuit").onclick = ()=>{
+    if(G.over){ finalScore(countRes()===0 ? "res" : "score"); return; }
+    openSheet(`<h2>要現在結束遊戲嗎？</h2>
+      <p style="color:var(--ink-2);margin:.3rem 0 0">會直接進入結算，把目前的分數算出來。</p>
+      <div style="display:flex;gap:.6rem;margin-top:1.1rem">
+        <button class="btn warn big" data-yes="1">結束並結算</button>
+        <button class="btn ghost big" data-no="1">繼續玩</button></div>`, (sh)=>{
+      sh.querySelector("[data-yes]").onclick = ()=>{ G.over=true; finalScore("score"); };
+      sh.querySelector("[data-no]").onclick = closeSheet;
+    });
+  };
+}
+
+initSetup();
+wire();
+</script>
