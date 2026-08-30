@@ -518,6 +518,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .field > label{font-family:"JetBrains Mono",monospace;font-size:.63rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
 .field .hint{font-size:.72rem;color:var(--ink-3);line-height:1.4}
 .seg{display:flex;gap:.3rem;flex-wrap:wrap}
+#segCount{display:grid;grid-template-columns:repeat(3,1fr)}   /* 六個選項排成 3×2，不要落單 */
 .seg button{
   border:1px solid var(--line);background:var(--panel-2);border-radius:8px;
   padding:.38rem .7rem;font-size:.82rem;font-weight:700;transition:.15s;
@@ -583,13 +584,14 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
     <div class="hero">
       <div class="big">ROBOT CITY</div>
       <div class="zh">機器人蓋城市</div>
-      <p>用「循序、選擇、重複、副程式」四種程式結構，指揮機器人在電路板城市上搶資源、蓋建築。一台電腦接大螢幕，5～7 位學生輪流上台出牌。</p>
+      <p>用「循序、選擇、重複、副程式」四種程式結構，指揮機器人在電路板城市上搶資源、蓋建築。一台電腦接大螢幕，2～7 位學生輪流上台出牌。</p>
     </div>
 
     <div class="grid2">
       <div>
         <div class="field">
-          <label>玩家（5～7 人）</label>
+          <label>玩家（2～7 人）</label>
+          <div class="hint">人少的時候建議搭配小地圖或調低資源密度，不然要跑很久才碰得到彼此。</div>
           <div class="seg" id="segCount"></div>
           <div id="names" style="margin-top:.5rem"></div>
         </div>
@@ -941,7 +943,7 @@ function summarize(){
     `${cfg.count} 人 · ${m.rows}×${m.cols} · 目標 ${cfg.target} 分 · ${ENDMODE[cfg.endMode].lbl} · ${on}/4 種卡`;
 }
 function initSetup(){
-  segNum("#segCount",[5,6,7],"count",v=>v+" 人",()=>{renderNames();summarize();});
+  segNum("#segCount",[2,3,4,5,6,7],"count",v=>v+" 人",()=>{renderNames();summarize();});
   seg("#segMap",MAPS,"map",summarize);
   seg("#segDensity",DENSITY,"density",summarize);
   segNum("#segMissions",[2,3],"missions",v=>v+" 張");
@@ -1084,10 +1086,10 @@ function chooseDirection(){
   const first = totals.find(t=>t.t===min).p;
   G.cur = first.id;
   openSheet(`
-    <h2>由 ${first.name} 決定出牌方向</h2>
+    <h2>${G.players.length > 2 ? `由 ${first.name} 決定出牌方向` : `${first.name} 先出牌`}</h2>
     <p style="color:var(--ink-2);margin:.3rem 0 0">
-      規則：抽到的任務卡<b>總積分最低</b>的玩家，優先決定遊戲要往哪一邊輪流。
-      ${first.name} 的任務卡總分是 <b class="mono">${min}</b> 分，全場最低，並由 ${first.name} 先手。
+      規則：抽到的任務卡<b>總積分最低</b>的玩家先手${G.players.length > 2 ? "，並決定遊戲要往哪一邊輪流" : ""}。
+      ${first.name} 的任務卡總分是 <b class="mono">${min}</b> 分，全場最低，由 ${first.name} 先出牌。
     </p>
     <h3>每台機器人的起始面向</h3>
     <p style="color:var(--ink-3);font-size:.8rem;margin:0 0 .5rem">機器人擺上 CPU 起始點後，可以自由決定一開始面對哪個方向。</p>
@@ -1102,10 +1104,12 @@ function chooseDirection(){
         </span>
       </div>`).join("")}
     </div>
-    <h3>選擇輪流方向</h3>
+    <h3>${G.players.length > 2 ? "選擇輪流方向" : "準備開始"}</h3>
     <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-      <button class="btn primary big" data-d="1">往下一位（1 → 2 → 3 …）</button>
-      <button class="btn big" data-d="-1">往上一位（3 → 2 → 1 …）</button>
+      ${G.players.length > 2
+        ? `<button class="btn primary big" data-d="1">往下一位（1 → 2 → 3 …）</button>
+           <button class="btn big" data-d="-1">往上一位（3 → 2 → 1 …）</button>`
+        : `<button class="btn primary big" data-d="1">開始遊戲 ▶</button>`}
     </div>
   `, (sheet)=>{
     sheet.querySelectorAll("[data-face]").forEach(seg=>{
