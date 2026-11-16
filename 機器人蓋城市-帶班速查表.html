@@ -1,0 +1,219 @@
+<meta charset="utf-8">
+<title>機器人蓋城市 帶班速查表</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --ink:#12241E; --ink2:#44584E; --ink3:#6E8277;
+  --green:#14433A; --gold:#8A5E12; --red:#A8312A; --teal:#0B6E5E;
+  --line:#BFCDC5; --soft:#DFE8E2; --tint:#F1F6F2;
+  --wood:#9A6639; --iron:#53729A; --stone:#6F7B85; --sand:#B99535;
+}
+html,body{margin:0;padding:0;background:#8A948E}
+body{
+  font-family:"PingFang TC","Microsoft JhengHei","Heiti TC","Noto Sans TC",sans-serif;
+  color:var(--ink); -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"SF Mono",Menlo,Consolas,"Courier New",monospace}
+
+.sheet{
+  width:210mm; height:297mm; background:#fff; margin:12px auto;
+  padding:9mm 9.5mm 7mm; display:flex; flex-direction:column; gap:3.4mm;
+  box-shadow:0 2px 14px rgba(0,0,0,.35);
+}
+
+/* ---------- 標題 ---------- */
+.head{display:flex;align-items:flex-end;gap:4mm;border-bottom:1.4pt solid var(--green);padding-bottom:2mm}
+.head h1{margin:0;font-size:16pt;font-weight:900;letter-spacing:.5pt;color:var(--green)}
+.head .en{font-size:8.5pt;font-weight:700;letter-spacing:1.4pt;color:var(--gold);margin-bottom:1.2pt}
+.head .url{margin-left:auto;font-size:8pt;color:var(--ink2);text-align:right;line-height:1.35}
+.head .url b{display:block;font-size:8.5pt;color:var(--green)}
+
+/* ---------- 區塊 ---------- */
+.row{display:flex;gap:3.4mm;align-items:stretch}
+.box{border:.8pt solid var(--line);border-radius:2.2mm;padding:2.4mm 3mm;background:#fff;min-width:0;flex:1}
+.box.tint{background:var(--tint)}
+.box h2{
+  margin:0 0 1.9mm;font-size:10pt;font-weight:900;color:var(--green);
+  display:flex;align-items:center;gap:1.6mm;
+}
+.box h2 i{
+  font-style:normal;background:var(--green);color:#fff;border-radius:1mm;
+  width:4.6mm;height:4.6mm;display:inline-grid;place-items:center;font-size:7.5pt;flex:none;
+}
+.box h2 small{margin-left:auto;font-size:7.5pt;font-weight:700;color:var(--ink3)}
+
+/* ---------- 回合步驟 ---------- */
+.steps{display:grid;gap:2mm}
+.step{display:grid;grid-template-columns:5mm 1fr;gap:1.8mm;align-items:start}
+.step > b{
+  background:var(--gold);color:#fff;border-radius:1mm;width:5mm;height:5mm;
+  display:grid;place-items:center;font-size:7.5pt;font-weight:900;
+}
+.step .t b{color:var(--green)}
+.step .t{font-size:9pt;line-height:1.45}
+.step .t strong{font-size:9.4pt;color:var(--green)}
+
+/* ---------- 卡片 ---------- */
+.cards{display:grid;gap:1.9mm}
+.card{display:grid;grid-template-columns:4mm 1fr;gap:1.8mm;align-items:start;font-size:8.8pt;line-height:1.42}
+.sw{width:4mm;height:4mm;border-radius:.8mm;border:.6pt solid rgba(0,0,0,.35);margin-top:.5mm}
+.card strong{color:var(--green);font-size:9.2pt}
+.card .code{font-size:7.7pt;color:var(--ink3)}
+
+/* ---------- 設定表 ---------- */
+table{width:100%;border-collapse:collapse;font-size:8.6pt}
+th,td{text-align:left;padding:1.4mm 1.4mm;border-bottom:.5pt solid var(--soft);vertical-align:top}
+th{font-size:7.5pt;color:var(--ink3);font-weight:700;letter-spacing:.3pt;border-bottom:.8pt solid var(--line)}
+td.k{font-weight:700;color:var(--green);white-space:nowrap}
+td.v{font-weight:700;color:var(--gold);white-space:nowrap}
+td.why{color:var(--ink2);font-size:8.2pt;line-height:1.38}
+tr:last-child td{border-bottom:none}
+
+/* ---------- 計分 ---------- */
+.score{display:flex;gap:2.6mm}
+.sc{flex:1;border:.8pt solid var(--line);border-radius:2mm;padding:2mm 2.4mm;text-align:center}
+.sc .n{font-size:13pt;font-weight:900;line-height:1.25}
+.sc .l{font-size:8.2pt;color:var(--ink2);margin-top:.6mm;line-height:1.3}
+.sc.ok .n{color:var(--teal)} .sc.mid .n{color:var(--gold)}
+.sc.no{border-color:var(--red);background:#FBF0EF} .sc.no .n{color:var(--red)} .sc.no .l{color:var(--red);font-weight:700}
+
+/* ---------- 卡關 ---------- */
+.fix{display:grid;gap:1.9mm}
+.fix div{font-size:8.7pt;line-height:1.45;display:grid;grid-template-columns:auto 1fr;gap:1.6mm}
+.fix q{font-weight:700;color:var(--red);quotes:"「" "」";white-space:nowrap}
+.fix span{color:var(--ink2)}
+.fix span b{color:var(--green)}
+
+.tips{display:grid;gap:1.9mm;font-size:8.7pt;line-height:1.45;color:var(--ink2)}
+.tips b{color:var(--green)}
+.key{
+  display:inline-block;border:.6pt solid var(--line);border-bottom-width:1.4pt;border-radius:1mm;
+  padding:0 1.1mm;font-size:7.8pt;font-weight:700;color:var(--ink);background:#fff;
+}
+
+.foot{margin-top:auto;border-top:.6pt solid var(--soft);padding-top:1.6mm;display:flex;gap:3mm;align-items:center}
+.foot .res{display:flex;gap:1.6mm;align-items:center;font-size:7.8pt;color:var(--ink2);flex-wrap:wrap}
+.chip{
+  width:4.4mm;height:4.4mm;border-radius:.8mm;color:#fff;display:inline-grid;place-items:center;
+  font-size:7pt;font-weight:900;
+}
+.foot .note{margin-left:auto;font-size:8pt;color:var(--ink3);text-align:right;line-height:1.4}
+
+@page{size:A4 portrait;margin:0}
+@media print{
+  html,body{background:#fff}
+  .sheet{margin:0;box-shadow:none;width:210mm;height:297mm}
+}
+</style>
+
+<div class="sheet">
+
+  <div class="head">
+    <div>
+      <div class="en">ROBOT CITY</div>
+      <h1>機器人蓋城市 · 帶班速查表</h1>
+    </div>
+    <div class="url">
+      <b>jack1214w.github.io/robot-city</b>
+      一台電腦接投影機 · 2～7 人輪流上台
+    </div>
+  </div>
+
+  <!-- 目標 -->
+  <div class="box tint" style="flex:none">
+    <div style="font-size:9.2pt;line-height:1.5">
+      <b style="color:var(--green)">目標</b>　學生<b>不能直接拖動機器人</b>，只能排好一串指令卡再按執行。機器人<b>走過的每一格只要有資源就自動撿走</b>；
+      把資源放上任務卡，集滿就蓋好建築拿分。<b>分數最高者獲勝。</b>
+    </div>
+  </div>
+
+  <!-- 回合 + 卡片 -->
+  <div class="row">
+    <div class="box" style="flex:1.05">
+      <h2><i>1</i>一個回合四步驟<small>最上方橫幅會一直提示</small></h2>
+      <div class="steps">
+        <div class="step"><b>1</b><div class="t"><strong>排程</strong>　點手牌 → 進「程式區」。<b>由上往下</b>就是執行順序，最多 6 張。點程式區的卡可收回</div></div>
+        <div class="step"><b>2</b><div class="t"><strong>執行</strong>　按「執行 ▶」，<b>中途不能改</b>。右側執行紀錄會逐行印出發生什麼事</div></div>
+        <div class="step"><b>3</b><div class="t"><strong>分配</strong>　資源放上任務卡或暫存卡。有「全部自動分配」可按</div></div>
+        <div class="step"><b>4</b><div class="t"><strong>整理</strong>　可 2 換 1、棄牌 → 按「結束回合」換人，手牌自動補滿 8 張</div></div>
+      </div>
+    </div>
+
+    <div class="box" style="flex:1">
+      <h2><i>2</i>四種卡＝四種程式結構</h2>
+      <div class="cards">
+        <div class="card"><span class="sw" style="background:#fff"></span><div><strong>白 · 循序</strong>　前進 1/2/3、左轉、右轉、迴轉<br><span class="code">move(2) · turn(90)</span></div></div>
+        <div class="card"><span class="sw" style="background:#EBC33F"></span><div><strong>黃 · 重複</strong>　包住<b>接下來 N 張</b>，跑幾次<br><span class="code">repeat(3){2}</span></div></div>
+        <div class="card"><span class="sw" style="background:#2F9C6E"></span><div><strong>綠 · 選擇</strong>　看地圖當下狀況決定做哪一件<br><span class="code">if(hasItem) 是→前進／否→右轉</span></div></div>
+        <div class="card"><span class="sw" style="background:linear-gradient(90deg,#E4813A 50%,#D24A44 50%)"></span><div><strong>橘＋紅 · 副程式</strong>　必須排成 <b>橘→紅→橘</b> 才生效<br><span class="code">call( … ) · 專車接送／加速器／磁鐵／交換／病毒</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="box" style="flex:none">
+    <h2><i>3</i>開場設定<small>第一次帶，照這一欄設就好</small></h2>
+    <table>
+      <tr><th style="width:17%">項目</th><th style="width:20%">第一次這樣設</th><th>為什麼</th><th style="width:22%">熟了之後</th></tr>
+      <tr><td class="k">地圖</td><td class="v">小 6×9</td><td class="why">大地圖要跑很久才碰得到彼此</td><td class="why">中 8×11</td></tr>
+      <tr><td class="k">開放卡片</td><td class="v">只開 白＋黃</td><td class="why">先搞懂「循序」和「迴圈」，一次四種會塞爆</td><td class="why">第二輪加綠，第三輪加橘紅</td></tr>
+      <tr><td class="k">目標積分</td><td class="v">6 分</td><td class="why">預設 8 分對第一次偏長</td><td class="why">8～10 分</td></tr>
+      <tr><td class="k">程式區格數</td><td class="v">4 格</td><td class="why">選擇少，新手比較不會卡住</td><td class="why">6 格</td></tr>
+      <tr><td class="k">執行速度</td><td class="v">慢</td><td class="why">全班要看清楚機器人每一步</td><td class="why">中</td></tr>
+      <tr><td class="k">時間限制</td><td class="v">不限</td><td class="why">第一輪讓他們慢慢想</td><td class="why">45 秒</td></tr>
+    </table>
+  </div>
+
+  <!-- 計分 -->
+  <div class="box tint" style="flex:none">
+    <h2><i>4</i>計分<small>開打前一定要口頭講一次</small></h2>
+    <div class="score">
+      <div class="sc ok"><div class="n">滿分</div><div class="l">蓋好的建築<br>拿任務卡上的完整分數</div></div>
+      <div class="sc mid"><div class="n">1 分</div><div class="l">沒蓋完的任務卡上<br>每個已收集的資源</div></div>
+      <div class="sc no"><div class="n">0 分</div><div class="l">暫存卡上的資源<br>完全不計分！</div></div>
+    </div>
+    <div style="font-size:8pt;color:var(--ink2);margin-top:1.6mm;line-height:1.4">
+      → 口訣：<b style="color:var(--green)">「撿到就放任務卡，不要囤在暫存卡」</b>。暫存卡只是中繼站，湊滿 2 個就趕快「2 換 1」換成需要的。
+    </div>
+  </div>
+
+  <!-- 卡關 + 小撇步 -->
+  <div class="row">
+    <div class="box" style="flex:1.25">
+      <h2><i>5</i>學生卡住時，先看這裡</h2>
+      <div class="fix">
+        <div><q>按執行沒反應</q><span>程式區是空的，或已經執行過了（該按<b>結束回合</b>）</span></div>
+        <div><q>紅卡沒作用</q><span>沒被橘卡夾住。必須是 <b>橘→紅→橘</b> 三張連在一起</span></div>
+        <div><q>機器人沒走到底</q><span>撞到 RAM／BUS／ROM、地圖邊界或其他機器人就停下，<b>後面的步數作廢</b></span></div>
+        <div><q>迴圈跑錯地方</q><span>黃卡包的是<b>接下來 N 張</b>，位置放錯就包到別張卡</span></div>
+        <div><q>分數一直很低</q><span>資源囤在暫存卡（不計分），或一直想蓋高分建築卻湊不齊</span></div>
+        <div><q>找不到我的機器人</q><span>輪到誰就有<b>白金雙圈＋腳下發亮</b>，座標軸也會標出行列，上方直接顯示座標</span></div>
+      </div>
+    </div>
+
+    <div class="box" style="flex:1">
+      <h2><i>6</i>畫面小撇步</h2>
+      <div class="tips">
+        <div><span class="key">專注地圖</span>　右上角，一鍵收起所有面板、<b>地圖自動放大</b>，講路線時好用，再按一次還原</div>
+        <div><span class="key">−</span>　每個面板右上角都能單獨收起</div>
+        <div><span class="key">規則</span>　隨時叫出完整規則與卡片說明（計時會暫停）</div>
+        <div><b>點計分板上的名字</b>　可看那位學生的任務卡；「差 N」＝他最接近完成的一張還缺幾個</div>
+        <div><b>用座標討論</b>　「機器人在 C4，要往 F4」比用手指螢幕快得多</div>
+        <div><b>單人練習</b>　課前自己先打一場，10 分鐘就能摸熟操作</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="res">
+      <b style="color:var(--green);white-space:nowrap">四種資源</b>
+      <span class="chip" style="background:var(--wood)">木</span>
+      <span class="chip" style="background:var(--iron)">鐵</span>
+      <span class="chip" style="background:var(--stone)">石</span>
+      <span class="chip" style="background:var(--sand)">沙</span>
+      <span>障礙 RAM／BUS／ROM 不可通過　·　SIM 卡＝地道，踩到傳送到下一個出口</span>
+    </div>
+    <div class="note">手牌全班都看得到 — 善用這點</div>
+  </div>
+
+</div>
