@@ -132,7 +132,7 @@ tr:last-child td{border-bottom:none}
     <div class="box" style="flex:1.05">
       <h2><i>1</i>一個回合四步驟<small>最上方橫幅會一直提示</small></h2>
       <div class="steps">
-        <div class="step"><b>1</b><div class="t"><strong>排程</strong>　點手牌 → 進「程式區」。<b>由上往下</b>就是執行順序，最多 6 張。點程式區的卡可收回</div></div>
+        <div class="step"><b>1</b><div class="t"><strong>排程</strong>　點手牌 → 進「程式區」，<b>由上往下</b>執行。黃／綠卡會長出凹槽，按 <b>＋／−</b> 決定夾住哪幾張</div></div>
         <div class="step"><b>2</b><div class="t"><strong>執行</strong>　按「執行 ▶」，<b>中途不能改</b>。右側執行紀錄會逐行印出發生什麼事</div></div>
         <div class="step"><b>3</b><div class="t"><strong>分配</strong>　資源放上任務卡或暫存卡。有「全部自動分配」可按</div></div>
         <div class="step"><b>4</b><div class="t"><strong>整理</strong>　可 2 換 1、棄牌 → 按「結束回合」換人，手牌自動補滿 8 張</div></div>
@@ -143,8 +143,8 @@ tr:last-child td{border-bottom:none}
       <h2><i>2</i>四種卡＝四種程式結構</h2>
       <div class="cards">
         <div class="card"><span class="sw" style="background:#fff"></span><div><strong>白 · 循序</strong>　前進 1/2/3、左轉、右轉、迴轉<br><span class="code">move(2) · turn(90)</span></div></div>
-        <div class="card"><span class="sw" style="background:#EBC33F"></span><div><strong>黃 · 重複</strong>　包住<b>接下來 N 張</b>，跑幾次<br><span class="code">repeat(3){2}</span></div></div>
-        <div class="card"><span class="sw" style="background:#2F9C6E"></span><div><strong>綠 · 選擇</strong>　看地圖當下狀況決定做哪一件<br><span class="code">if(hasItem) 是→前進／否→右轉</span></div></div>
+        <div class="card"><span class="sw" style="background:#EBC33F"></span><div><strong>黃 · 重複</strong>　用 <b>＋／−</b> 自己決定夾住哪幾張<br><span class="code">repeat(3){ }</span></div></div>
+        <div class="card"><span class="sw" style="background:#2F9C6E"></span><div><strong>綠 · 選擇</strong>　成立才做夾住的動作，否則整段跳過<br><span class="code">if(hasItem){ }</span></div></div>
         <div class="card"><span class="sw" style="background:linear-gradient(90deg,#E4813A 50%,#D24A44 50%)"></span><div><strong>橘＋紅 · 副程式</strong>　必須排成 <b>橘→紅→橘</b> 才生效<br><span class="code">call( … ) · 專車接送／加速器／磁鐵／交換／病毒</span></div></div>
       </div>
     </div>
@@ -185,7 +185,7 @@ tr:last-child td{border-bottom:none}
         <div><q>按執行沒反應</q><span>程式區是空的，或已經執行過了（該按<b>結束回合</b>）</span></div>
         <div><q>紅卡沒作用</q><span>沒被橘卡夾住。必須是 <b>橘→紅→橘</b> 三張連在一起</span></div>
         <div><q>機器人沒走到底</q><span>撞到 RAM／BUS／ROM、地圖邊界或其他機器人就停下，<b>後面的步數作廢</b></span></div>
-        <div><q>迴圈跑錯地方</q><span>黃卡包的是<b>接下來 N 張</b>，位置放錯就包到別張卡</span></div>
+        <div><q>迴圈跑錯次數</q><span>夾住的張數不對。按卡片右下角 <b>＋／−</b>，中間數字就是夾住幾張</span></div>
         <div><q>分數一直很低</q><span>資源囤在暫存卡（不計分），或一直想蓋高分建築卻湊不齊</span></div>
         <div><q>找不到我的機器人</q><span>輪到誰就有<b>白金雙圈＋腳下發亮</b>，座標軸也會標出行列，上方直接顯示座標</span></div>
       </div>

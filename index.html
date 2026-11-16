@@ -383,6 +383,52 @@ button{font:inherit;color:inherit;cursor:pointer}
   font-family:"JetBrains Mono",monospace;font-size:.55rem;font-weight:700;
   letter-spacing:.08em;opacity:.7
 }
+
+/* ---- Scratch 式的 C 形包夾：迴圈／條件可以自己決定夾住哪幾張 ---- */
+.wrapgroup{
+  display:flex; flex-direction:column; gap:.3rem;
+  --wc:var(--gold);                       /* 夾子的顏色，依卡色切換 */
+}
+.wrapgroup.w-yellow{--wc:var(--c-yellow)}
+.wrapgroup.w-green {--wc:var(--c-green)}
+.wrapgroup .wrap-head{position:relative}
+.wrapgroup .wrap-head .minicard{border-bottom-left-radius:2px}
+
+/* 夾住的內容：縮排 + 左側立柱，形成 C 的開口 */
+.wrapbody{
+  display:flex; flex-direction:column; gap:.3rem;
+  margin-left:1.5rem; padding-left:.4rem;
+  border-left:5px solid var(--wc);
+}
+.wrapbody .slot{min-height:2.3rem}
+.wrapempty{
+  font-size:.68rem; color:var(--ink-3); padding:.45rem .5rem;
+  border:1px dashed var(--line); border-radius:7px; background:var(--panel-2);
+}
+/* C 的底：接回來的橫條 */
+.wrapfoot{
+  margin-left:1.5rem; height:.48rem; width:3.4rem;
+  background:var(--wc); border-radius:0 4px 4px 0;
+}
+
+/* 夾住張數的加減控制 */
+.spanctl{
+  position:absolute; right:.4rem; bottom:-.55rem; z-index:2;
+  display:flex; align-items:center; gap:.15rem;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:999px; padding:.1rem .18rem; box-shadow:var(--shadow);
+}
+.sbtn{
+  width:1.15rem; height:1.15rem; border-radius:999px; border:none;
+  background:var(--wc); color:#17241E; font-weight:900; font-size:.78rem;
+  line-height:1; display:grid; place-items:center; padding:0;
+}
+.sbtn:disabled{opacity:.3}
+.sbtn:not(:disabled):hover{filter:brightness(1.12)}
+.snum{
+  font-family:"JetBrains Mono",monospace; font-size:.68rem; font-weight:700;
+  color:var(--ink); min-width:.85rem; text-align:center;
+}
 .log{font-family:"JetBrains Mono",monospace;font-size:.66rem;line-height:1.6;color:var(--ink-2)}
 .log div{padding:.05rem 0;border-bottom:1px dotted var(--line-soft)}
 .log b{color:var(--ink)}
@@ -844,7 +890,7 @@ const PCOLORS = ["#E0564E","#2F8FD8","#3FA96B","#E0A02A","#A96BD0","#E07A3C","#2
 const DEFAULT_NAMES = ["1號機","2號機","3號機","4號機","5號機","6號機","7號機"];
 
 /* --- 控制卡 --------------------------------------------------------- */
-// act: 單一動作代號，供白卡與綠卡的「是/否」分支共用
+// act: 單一動作代號（白卡使用）
 const ACT = {
   f1:{lbl:"前進 1", run:(p)=>stepForward(p,1)},
   f2:{lbl:"前進 2", run:(p)=>stepForward(p,2)},
@@ -869,18 +915,14 @@ const CARDS = [
   {id:"w_U",  g:"white", tag:"SEQ", nm:"迴轉",   sub:"原地轉 180°",        cd:"turn(180)", act:"U", n:5},
 
   // ---- 黃：重複結構（迴圈）----
-  {id:"y_1x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 1 張，跑 2 次", cd:"repeat(2){1}", k:1, times:2, n:4},
-  {id:"y_1x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"接下來 1 張，跑 3 次", cd:"repeat(3){1}", k:1, times:3, n:3},
-  {id:"y_2x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 2 張，跑 2 次", cd:"repeat(2){2}", k:2, times:2, n:4},
-  {id:"y_2x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"接下來 2 張，跑 3 次", cd:"repeat(3){2}", k:2, times:3, n:2},
-  {id:"y_3x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"接下來 3 張，跑 2 次", cd:"repeat(2){3}", k:3, times:2, n:2},
+  {id:"y_x2", g:"yellow", tag:"LOOP", nm:"重複 ×2", sub:"夾住的動作做 2 次", cd:"repeat(2){ }", times:2, n:8},
+  {id:"y_x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"夾住的動作做 3 次", cd:"repeat(3){ }", times:3, n:5},
+  {id:"y_x4", g:"yellow", tag:"LOOP", nm:"重複 ×4", sub:"夾住的動作做 4 次", cd:"repeat(4){ }", times:4, n:2},
 
   // ---- 綠：選擇結構（條件判斷）----
-  {id:"g_pf_r", g:"green", tag:"IF", nm:"前方可通行？", sub:"是 → 前進 1｜否 → 右轉", cd:"if(canMove)", cond:"canMove", yes:"f1", no:"R", n:3},
-  {id:"g_pf_l", g:"green", tag:"IF", nm:"前方可通行？", sub:"是 → 前進 1｜否 → 左轉", cd:"if(canMove)", cond:"canMove", yes:"f1", no:"L", n:3},
-  {id:"g_rs_r", g:"green", tag:"IF", nm:"前方有資源？", sub:"是 → 前進 1｜否 → 右轉", cd:"if(hasItem)", cond:"resAhead", yes:"f1", no:"R", n:3},
-  {id:"g_rs_u", g:"green", tag:"IF", nm:"前方有資源？", sub:"是 → 前進 2｜否 → 迴轉", cd:"if(hasItem)", cond:"resAhead", yes:"f2", no:"U", n:3},
-  {id:"g_wl_l", g:"green", tag:"IF", nm:"前方是障礙？", sub:"是 → 左轉｜否 → 前進 1",  cd:"if(isWall)",  cond:"wallAhead", yes:"L", no:"f1", n:3},
+  {id:"g_can",  g:"green", tag:"IF", nm:"如果 前方可通行", sub:"成立才做夾住的動作", cd:"if(canMove){ }", cond:"canMove",   n:5},
+  {id:"g_item", g:"green", tag:"IF", nm:"如果 前方有資源", sub:"成立才做夾住的動作", cd:"if(hasItem){ }", cond:"resAhead",  n:5},
+  {id:"g_wall", g:"green", tag:"IF", nm:"如果 前方是障礙", sub:"成立才做夾住的動作", cd:"if(isWall){ }",  cond:"wallAhead", n:5},
 
   // ---- 橘：發動（呼叫）----
   {id:"o_call", g:"orange", tag:"CALL", nm:"發動", sub:"要夾在紅卡的前後兩側，紅卡才會生效", cd:"call( … )", n:10},
@@ -996,8 +1038,8 @@ function renderNames(){
 }
 const TOGGLE_DEFS = [
   {k:"white",  c:"var(--c-white)",  t:"白色卡 · 循序結構", d:"前進、左轉、右轉、迴轉（必開）", lock:true},
-  {k:"yellow", c:"var(--c-yellow)", t:"黃色卡 · 重複結構", d:"迴圈：接下來 N 張重複跑幾次"},
-  {k:"green",  c:"var(--c-green)",  t:"綠色卡 · 選擇結構", d:"條件判斷：是 → 做 A，否 → 做 B"},
+  {k:"yellow", c:"var(--c-yellow)", t:"黃色卡 · 重複結構", d:"迴圈：自己決定夾住哪幾張，重複跑"},
+  {k:"green",  c:"var(--c-green)",  t:"綠色卡 · 選擇結構", d:"條件判斷：成立才做夾住的動作"},
   {k:"red",    c:"var(--c-red)",    t:"橘＋紅卡 · 呼叫副程式", d:"紅卡要被兩張橘色發動卡夾住才生效"},
 ];
 function renderToggles(){
@@ -1463,7 +1505,7 @@ function onTimeUp(){
   }else if(G.phase === "tidy"){
     endTurn();
   }
-  // phase === "run"：runSeq 會在目前這張卡做完後自行停下
+  // phase === "run"：runNodes 會在目前這張卡做完後自行停下
 }
 
 /* =======================================================================
@@ -1524,12 +1566,12 @@ const STEPS = [
   {k:"tidy",    t:"整理換人"},
 ];
 function badRedCards(){
-  return G.program.filter((id,i)=>{
-    if(CARDMAP[id].g !== "red") return false;
-    const b = G.program[i-1] && CARDMAP[G.program[i-1]].g === "orange";
-    const a = G.program[i+1] && CARDMAP[G.program[i+1]].g === "orange";
+  return G.program.filter((it,i)=>{
+    if(CARDMAP[it.id].g !== "red") return false;
+    const b = G.program[i-1] && CARDMAP[G.program[i-1].id].g === "orange";
+    const a = G.program[i+1] && CARDMAP[G.program[i+1].id].g === "orange";
     return !(a && b);
-  }).map(id=>CARDMAP[id].nm);
+  }).map(it=>CARDMAP[it.id].nm);
 }
 function guideTip(){
   const p = P();
@@ -1568,27 +1610,108 @@ function cardFace(id, mini){
   return `<span class="tag">${c.tag}</span><span class="nm">${c.nm}</span><span class="sub">${c.sub}</span><span class="cd">${c.cd}</span>`;
 }
 
+/* 會夾住其他卡片的結構卡（迴圈／條件） */
+const isWrapper = (id)=>{ const g = CARDMAP[id].g; return g==="yellow" || g==="green"; };
+
+/* 把扁平的 G.program 依 span 建成巢狀樹；span 超出範圍會被外層邊界截斷 */
+function buildTree(prog, start, end){
+  const nodes = [];
+  let i = start;
+  while(i < end){
+    const item = prog[i], c = CARDMAP[item.id];
+    if(isWrapper(item.id) && item.span > 0){
+      const stop = Math.min(i + 1 + item.span, end);
+      nodes.push({ i, item, c, children: buildTree(prog, i+1, stop) });
+      i = stop;
+    }else{
+      nodes.push({ i, item, c, children: isWrapper(item.id) ? [] : null });
+      i++;
+    }
+  }
+  return nodes;
+}
+/* 這張結構卡實際夾住了幾張（含巢狀內部） */
+function spanOf(i){
+  const item = G.program[i];
+  if(!item || !isWrapper(item.id)) return 0;
+  return Math.min(item.span || 0, G.program.length - i - 1);
+}
+/* 調整夾住的張數 */
+function bumpSpan(i, d){
+  if(G.phase !== "program") return;
+  const item = G.program[i];
+  const max = G.program.length - i - 1;
+  item.span = Math.max(0, Math.min(max, (item.span||0) + d));
+  renderProgram(); renderHand();
+}
+function removeAt(i){
+  if(G.phase !== "program") return;
+  G.program.splice(i,1);
+  // 被移掉一張後，前面所有結構卡夾住的範圍要同步縮回來
+  G.program.forEach((it,j)=>{
+    if(isWrapper(it.id) && it.span > 0 && j < i && j + it.span >= i) it.span--;
+  });
+  renderProgram(); renderHand();
+}
+
 function renderProgram(){
-  const host = $("#progslots"); host.innerHTML="";
-  for(let i=0;i<cfg.slots;i++){
+  const host = $("#progslots"); host.innerHTML = "";
+  const editable = G.phase === "program";
+
+  const slotEl = (node)=>{
+    const slot = el("div","slot filled");
+    slot.dataset.pi = node.i;
+    slot.appendChild(el("span","ln", String(node.i+1).padStart(2,"0")));
+    const mc = el("button","minicard c-"+node.c.g, cardFace(node.item.id, true));
+    mc.title = "點一下收回手牌";
+    mc.onclick = ()=>removeAt(node.i);
+    slot.appendChild(mc);
+    return slot;
+  };
+
+  const render = (nodes, into)=>{
+    nodes.forEach(node=>{
+      if(!node.children){ into.appendChild(slotEl(node)); return; }
+
+      // 結構卡 → 畫成 C 形包夾
+      const grp = el("div","wrapgroup w-"+node.c.g);
+      const head = slotEl(node);
+      head.classList.add("wrap-head");
+
+      const ctrl = el("div","spanctl");
+      const minus = el("button","sbtn","−");
+      const plus  = el("button","sbtn","+");
+      const n = spanOf(node.i);
+      minus.disabled = !editable || n <= 0;
+      plus.disabled  = !editable || n >= G.program.length - node.i - 1;
+      minus.title = "少夾一張"; plus.title = "多夾一張";
+      minus.onclick = (e)=>{ e.stopPropagation(); bumpSpan(node.i,-1); };
+      plus.onclick  = (e)=>{ e.stopPropagation(); bumpSpan(node.i, 1); };
+      ctrl.append(minus, el("span","snum", String(n)), plus);
+      head.appendChild(ctrl);
+      grp.appendChild(head);
+
+      const body = el("div","wrapbody");
+      if(node.children.length) render(node.children, body);
+      else body.appendChild(el("div","wrapempty","按 ＋ 把下面的卡夾進來"));
+      grp.appendChild(body);
+      grp.appendChild(el("div","wrapfoot"));
+      into.appendChild(grp);
+    });
+  };
+  render(buildTree(G.program, 0, G.program.length), host);
+
+  // 補滿空格
+  for(let i=G.program.length;i<cfg.slots;i++){
     const slot = el("div","slot");
     slot.appendChild(el("span","ln", String(i+1).padStart(2,"0")));
-    const id = G.program[i];
-    if(id){
-      slot.classList.add("filled");
-      const mc = el("button","minicard c-"+CARDMAP[id].g, cardFace(id,true));
-      mc.title = "點一下收回手牌";
-      mc.onclick = ()=>{ if(G.phase!=="program") return; G.program.splice(i,1); renderProgram(); renderHand(); };
-      slot.appendChild(mc);
-    }else{
-      slot.appendChild(el("span","empty","空"));
-    }
-    slot.dataset.i = i;
+    slot.appendChild(el("span","empty","空"));
     host.appendChild(slot);
   }
+
   $("#progCount").textContent = `${G.program.length}/${cfg.slots}`;
-  $("#btnRun").disabled = G.phase!=="program" || G.program.length===0;
-  $("#btnClear").disabled = G.phase!=="program" || G.program.length===0;
+  $("#btnRun").disabled = !editable || G.program.length===0;
+  $("#btnClear").disabled = !editable || G.program.length===0;
   renderGuide();
 }
 
@@ -1596,7 +1719,7 @@ function renderHand(){
   const p = P();
   const host = $("#hand"); host.innerHTML="";
   const used = {};
-  G.program.forEach(id=>{ used[id]=(used[id]||0)+1; });
+  G.program.forEach(it=>{ used[it.id]=(used[it.id]||0)+1; });
   const left = {...used};
   p.hand.forEach((id, idx)=>{
     const b = el("button","card c-"+CARDMAP[id].g, cardFace(id));
@@ -1609,7 +1732,8 @@ function renderHand(){
         b.disabled = G.phase!=="program";
         b.onclick = ()=>{
           if(G.program.length>=cfg.slots){ banner("程式區已滿","bad"); return; }
-          G.program.push(id); renderProgram(); renderHand();
+          G.program.push(isWrapper(id) ? {id, span:0} : {id});
+          renderProgram(); renderHand();
         };
       }
     }
@@ -1766,51 +1890,63 @@ async function stepForward(p, n){
 }
 
 function hi(i){
-  document.querySelectorAll("#progslots .slot").forEach((s,k)=>s.classList.toggle("running", k===i));
+  document.querySelectorAll("#progslots .slot").forEach(s=>
+    s.classList.toggle("running", s.dataset.pi !== undefined && +s.dataset.pi === i));
+}
+/* 這棵子樹總共含幾張卡（含巢狀） */
+function countCards(nodes){
+  return nodes.reduce((n,x)=> n + 1 + (x.children ? countCards(x.children) : 0), 0);
 }
 
-async function runSeq(prog, p, base){
-  let i = 0;
-  while(i < prog.length){
+async function runNodes(nodes, p){
+  for(let i = 0; i < nodes.length; i++){
     if(G.timeUp){                      // 目前這張卡已做完，其餘不再執行
       logLine("時間到，後面的指令不再執行", "r");
       return;
     }
-    const id = prog[i], c = CARDMAP[id];
-    hi(base + i);
+    const node = nodes[i], c = node.c;
+    hi(node.i);
     await sleep(SPD()*0.25);
 
     if(c.g === "yellow"){
-      const k = Math.min(c.k, prog.length - i - 1);
-      if(k <= 0){
-        logLine("重複卡後面沒有卡片可以包住 → 跳過", "r");
-        i++; continue;
+      const kids = node.children || [];
+      if(!kids.length){
+        logLine("這個迴圈沒有夾住任何卡片 → 跳過", "r");
+        await sleep(SPD()*0.4);
+        continue;
       }
-      logLine(`<b>${c.cd}</b> 包住接下來 ${k} 張，共跑 ${c.times} 次`, "y");
-      const block = prog.slice(i+1, i+1+k);
-      for(let t=0; t<c.times; t++){
+      logLine(`<b>${c.cd}</b> 夾住 ${countCards(kids)} 張，共跑 ${c.times} 次`, "y");
+      for(let t = 0; t < c.times; t++){
         logLine(`　└ 第 ${t+1} / ${c.times} 次`, "y");
-        await runSeq(block, p, base + i + 1);
+        await runNodes(kids, p);
+        if(G.timeUp) return;
       }
-      hi(base + i);
-      i += 1 + k;
+      hi(node.i);
 
     }else if(c.g === "green"){
       const cond = COND[c.cond];
       const yes = cond.test(p);
-      logLine(`<b>${c.cd}</b> ${cond.lbl} → <b>${yes?"是":"否"}</b>`, yes?"g":"r");
+      logLine(`<b>${c.cd}</b> ${cond.lbl} → <b>${yes ? "是" : "否"}</b>`, yes ? "g" : "r");
       await sleep(SPD()*0.5);
-      const a = ACT[yes ? c.yes : c.no];
-      logLine(`　└ 執行 ${a.lbl}`);
-      await a.run(p);
-      i++;
+      const kids = node.children || [];
+      if(!kids.length){
+        logLine("　└ 這個條件沒有夾住任何卡片", "r");
+        await sleep(SPD()*0.3);
+      }else if(yes){
+        await runNodes(kids, p);
+        if(G.timeUp) return;
+        hi(node.i);
+      }else{
+        logLine(`　└ 條件不成立，夾住的 ${countCards(kids)} 張全部跳過`, "r");
+        await sleep(SPD()*0.4);
+      }
 
     }else if(c.g === "orange"){
-      i++;   // 橘卡本身不動作，由紅卡判定是否被夾住
+      // 橘卡本身不動作，由紅卡判定是否被夾住
 
     }else if(c.g === "red"){
-      const before = i > 0 && CARDMAP[prog[i-1]].g === "orange";
-      const after  = i < prog.length-1 && CARDMAP[prog[i+1]].g === "orange";
+      const before = nodes[i-1] && nodes[i-1].c.g === "orange";
+      const after  = nodes[i+1] && nodes[i+1].c.g === "orange";
       if(before && after){
         logLine(`<b>call( ${c.nm} )</b> 副程式啟動`, "y");
         await RED[c.fn](p);
@@ -1819,13 +1955,11 @@ async function runSeq(prog, p, base){
         banner(`${c.nm} 必須是「橘 → 紅 → 橘」才會生效`, "bad");
         await sleep(1100);
       }
-      i++;
 
     }else{
       const a = ACT[c.act];
       logLine(`<b>${c.cd}</b> ${a.lbl}`);
       await a.run(p);
-      i++;
     }
   }
 }
@@ -2097,7 +2231,7 @@ async function runProgram(){
   const p = P();
   logLine(`▶ 開始執行 ${G.program.length} 張指令`, "y");
   try{
-    await runSeq(G.program, p, 0);
+    await runNodes(buildTree(G.program, 0, G.program.length), p);
   }finally{
     hi(-1);
     G.running = false;
@@ -2122,7 +2256,8 @@ function endTurn(){
     G.discard.push(p.hand[i]); p.hand.splice(i,1);
   });
   // 2) 再丟掉這回合出過的卡
-  G.program.forEach(id=>{
+  G.program.forEach(it=>{
+    const id = it.id;
     const i = p.hand.indexOf(id);
     if(i>=0){ p.hand.splice(i,1); G.discard.push(id); }
   });
@@ -2253,8 +2388,8 @@ function cardChip(c){
 function showRules(){
   const groups = [
     ["white","白色卡 · 循序結構","一行一行照順序做完。程式最基本的樣子。"],
-    ["yellow","黃色卡 · 重複結構","迴圈。把接下來幾張卡包起來，重複跑幾次。"],
-    ["green","綠色卡 · 選擇結構","條件判斷。先看地圖狀況，再決定要做哪一件事。"],
+    ["yellow","黃色卡 · 重複結構","迴圈。用 ＋ ／ − 自己決定要夾住哪幾張，整段重複跑。"],
+    ["green","綠色卡 · 選擇結構","條件判斷。條件成立才做夾住的動作，不成立就整段跳過。"],
     ["orange","橘色卡 · 發動","呼叫的動作本身。必須放在紅卡的前後兩側。"],
     ["red","紅色卡 · 副程式","強大的特殊能力，但一定要被兩張橘卡夾住才會生效。"],
   ];
@@ -2267,7 +2402,8 @@ function showRules(){
 
     <h3>一個回合做什麼</h3>
     <table class="ref">
-      <tr><th style="width:5rem">1 排程</th><td>點手牌把卡片放進「程式區」，由上而下就是執行順序（本場最多 ${cfg.slots} 張）。放錯了點程式區的卡片可以收回。</td></tr>
+      <tr><th style="width:5rem">1 排程</th><td>點手牌把卡片放進「程式區」，由上而下就是執行順序（本場最多 ${cfg.slots} 張）。放錯了點程式區的卡片可以收回。
+        ${(cfg.enable.yellow || cfg.enable.green) ? `黃卡與綠卡會長出一個<b>凹槽</b>，用卡片右下角的 <b>＋ ／ −</b> 決定要把下面哪幾張夾進去。` : ""}</td></tr>
       <tr><th>2 執行</th><td>按「執行 ▶」，機器人依序跑完。<b>走過的格子上有資源就會自動撿走</b>；撞到 RAM／匯流排或其他機器人就停下。</td></tr>
       <tr><th>3 分配</th><td>把撿到的資源放上任務卡，或先丟到暫存卡。任務卡集滿就得分，並立刻補一張新的任務卡。</td></tr>
       <tr><th>4 整理</th><td>可以用暫存卡「2 換 1」換到需要的資源；選擇要棄掉的手牌，然後結束回合，手牌自動補滿 8 張。</td></tr>
@@ -2306,6 +2442,15 @@ function showRules(){
         <div style="display:flex;flex-wrap:wrap;gap:.35rem">${list.map(cardChip).join("")}</div>
       </div>`;
     }).join("")}
+
+    ${(cfg.enable.yellow || cfg.enable.green) ? `
+    <h3>迴圈與條件：自己決定要夾住哪幾張</h3>
+    <table class="ref">
+      <tr><th style="width:7rem">怎麼夾</th><td>把黃卡或綠卡放進程式區後，它下面會出現一個凹槽。按卡片右下角的 <b>＋</b> 就把下一張卡夾進來，按 <b>−</b> 就吐出去。中間的數字是目前夾住幾張。</td></tr>
+      <tr><th>為什麼重要</th><td>同樣是「重複 ×2、左轉、左轉」，夾 <b>1 張</b>＝左轉兩次後再左轉一次（共 3 次）；夾 <b>2 張</b>＝左轉四次。<b>夾住的範圍不同，結果完全不同。</b></td></tr>
+      <tr><th>可以疊</th><td>凹槽裡還能再放一張黃卡或綠卡，形成巢狀。例如「重複 ×2」裡面夾一個「重複 ×3」，動作就會做 6 次。</td></tr>
+      <tr><th>綠卡的規則</th><td>條件<b>成立才做</b>夾住的動作；不成立就整段跳過，那幾張不會動作。</td></tr>
+    </table>` : ""}
 
     <h3>紅卡怎麼發動</h3>
     <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">
