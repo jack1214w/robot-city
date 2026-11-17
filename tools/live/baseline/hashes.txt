@@ -1,0 +1,4 @@
+# v1.0 熱椅回歸測試基準（hotseat-regression.js 最終版產生）
+# 每行：選項 → hash
+{seed:5, players:4, turns:21, rig:true}  → 98497649
+{seed:99, players:2, turns:24}           → 879d33f0
