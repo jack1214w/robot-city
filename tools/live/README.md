@@ -56,3 +56,12 @@
 
 基準是用 **v1.0**（`git checkout v1.0 -- index.html` 或桌面的離線備份）跑出來的。
 只有在**刻意改變熱椅規則**時才需要重新產生，而且要在 commit 訊息裡寫清楚為什麼。
+
+## 做分享包給其他老師
+
+```bash
+bash tools/make-share-zip.sh
+```
+
+產出 `dist/robot-city-分享包-日期-版本.zip`（`dist/` 不進 git）。只打包**已 commit** 的內容，有沒 commit 的修改會拒絕打包。
+壓縮檔解開是一個 `robot-city` 資料夾，裡面多一個 `版本.txt` 記錄日期與 commit。用 `ditto` 壓縮，啟動檔的執行權限會保留。
