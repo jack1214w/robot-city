@@ -383,6 +383,9 @@ button{font:inherit;color:inherit;cursor:pointer}
   font-family:"JetBrains Mono",monospace;font-size:.55rem;font-weight:700;
   letter-spacing:.08em;opacity:.7
 }
+/* 綠卡要塞進「條件 + 內建動作」兩行，字級收一點才不會擠爆窄欄 */
+.minicard.c-green .nm{font-size:.72rem}
+.minicard.c-green .cd{font-family:inherit;font-size:.64rem;font-weight:700;opacity:.92}
 
 /* ---- Scratch 式的 C 形包夾：迴圈／條件可以自己決定夾住哪幾張 ---- */
 .wrapgroup{
@@ -390,7 +393,6 @@ button{font:inherit;color:inherit;cursor:pointer}
   --wc:var(--gold);                       /* 夾子的顏色，依卡色切換 */
 }
 .wrapgroup.w-yellow{--wc:var(--c-yellow)}
-.wrapgroup.w-green {--wc:var(--c-green)}
 .wrapgroup .wrap-head{position:relative}
 .wrapgroup .wrap-head .minicard{border-bottom-left-radius:2px}
 
@@ -496,7 +498,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   width:6.2rem; min-width:6.2rem; height:7.1rem; border-radius:10px; border:1px solid;
   padding:.4rem .45rem; display:flex; flex-direction:column; gap:.15rem;
   cursor:pointer; transition:transform .14s, box-shadow .14s; box-shadow:var(--shadow);
-  position:relative; text-align:left;
+  position:relative; text-align:left; overflow:hidden;
 }
 .card:hover{transform:translateY(-6px); box-shadow:var(--shadow-lift)}
 .card:disabled{cursor:default;opacity:.4}
@@ -507,6 +509,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card .nm{font-weight:900;font-size:.86rem;line-height:1.18;letter-spacing:.01em}
 .card .sub{font-size:.66rem;line-height:1.25;opacity:.8;flex:1}
 .card .cd{font-family:"JetBrains Mono",monospace;font-size:.55rem;line-height:1.2;opacity:.68;border-top:1px solid currentColor;padding-top:.2rem;margin-top:auto}
+/* 綠卡＝「如果（條件）就（內建動作）」，四行資訊，字級與行距都要收，
+   否則在 1024px（卡片 88×107）時最長的那幾張會被裁掉 */
+.card.gcard{gap:.08rem}
+.card.gcard .nm{font-size:.74rem;line-height:1.12}
+.card.gcard .sub{font-size:.6rem;line-height:1.18;font-weight:700;opacity:.95}
+.card.gcard .cd{font-size:.5rem;line-height:1.12;padding-top:.14rem}
 .card.sel{outline:3px solid var(--danger); outline-offset:-3px}
 .card.sel::after{content:"棄";position:absolute;top:.25rem;right:.3rem;background:var(--danger);color:#fff;font-size:.6rem;font-weight:900;border-radius:4px;padding:0 .2rem}
 
@@ -753,7 +761,7 @@ table.ref th{font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spac
         <div class="field">
           <label>本場開放的控制卡</label>
           <div class="toggles" id="cardToggles"></div>
-          <div class="hint">依學生程度調整。只開白卡＝純粹的循序指令；加上黃卡＝迴圈；綠卡＝條件判斷；橘＋紅＝呼叫副程式。</div>
+          <div class="hint">依學生程度調整。只開白卡＝純粹的循序指令；加上黃卡＝迴圈；綠卡＝條件判斷（動作由卡片內建、系統隨機發牌）；橘＋紅＝呼叫副程式與特殊能力。</div>
         </div>
       </div>
     </div>
@@ -890,20 +898,68 @@ const PCOLORS = ["#E0564E","#2F8FD8","#3FA96B","#E0A02A","#A96BD0","#E07A3C","#2
 const DEFAULT_NAMES = ["1號機","2號機","3號機","4號機","5號機","6號機","7號機"];
 
 /* --- 控制卡 --------------------------------------------------------- */
-// act: 單一動作代號（白卡使用）
+// act: 單一動作代號。白卡用 act 當自己的動作，綠卡用 act 當「條件成立時內建的動作」
 const ACT = {
-  f1:{lbl:"前進 1", run:(p)=>stepForward(p,1)},
-  f2:{lbl:"前進 2", run:(p)=>stepForward(p,2)},
-  f3:{lbl:"前進 3", run:(p)=>stepForward(p,3)},
-  L :{lbl:"左轉",  run:(p)=>turn(p,-1)},
-  R :{lbl:"右轉",  run:(p)=>turn(p,1)},
-  U :{lbl:"迴轉",  run:(p)=>turn(p,2)},
+  f1:{lbl:"前進 1", cd:"move(1)",   run:(p)=>stepForward(p,1)},
+  f2:{lbl:"前進 2", cd:"move(2)",   run:(p)=>stepForward(p,2)},
+  f3:{lbl:"前進 3", cd:"move(3)",   run:(p)=>stepForward(p,3)},
+  L :{lbl:"左轉",   cd:"turn(-90)", run:(p)=>turn(p,-1)},
+  R :{lbl:"右轉",   cd:"turn(90)",  run:(p)=>turn(p,1)},
+  U :{lbl:"迴轉",   cd:"turn(180)", run:(p)=>turn(p,2)},
+  // 綠卡專用的內建動作
+  blast :{lbl:"炸掉前方的障礙",      cd:"blast()",  run:(p)=>clearAhead(p,1)},
+  clear3:{lbl:"清掉前方 3 格的障礙", cd:"clear(3)", run:(p)=>clearAhead(p,3)},
+  magnet:{lbl:"吸走四周的資源",      cd:"magnet()", run:(p)=>magnetAt(p)},
 };
+// nm = 印在卡片上的短名稱；lbl = 執行紀錄裡的完整敘述
 const COND = {
-  canMove:{lbl:"前方可通行？", test:(p)=>frontFree(p)},
-  resAhead:{lbl:"前方有資源？", test:(p)=>{const c=front(p); return !!(c && c.res);}},
-  wallAhead:{lbl:"前方是障礙？", test:(p)=>!frontFree(p)},
+  canMove:{nm:"前方可通行",      lbl:"前方可通行？",                   cd:"canMove",
+           test:(p)=>frontFree(p)},
+  blocked:{nm:"前方走不通",      lbl:"前方走不通（障礙／邊界／機器人）？", cd:"blocked",
+           test:(p)=>!frontFree(p)},
+  isWall :{nm:"前方是障礙",      lbl:"前方是障礙物？",                 cd:"isWall",
+           test:(p)=>{const c=front(p); return !!c && c.type==="wall";}},
+  hasItem:{nm:"前方有資源",      lbl:"前方有資源？",                   cd:"hasItem",
+           test:(p)=>{const c=front(p); return !!(c && c.res);}},
+  item3  :{nm:"前方 3 格有資源", lbl:"前方 3 格內有資源？",            cd:"item3",
+           test:(p)=>scanAhead(p,3).some(c=>c.res)},
+  wall3  :{nm:"前方 3 格有障礙", lbl:"前方 3 格內有障礙？",            cd:"wall3",
+           test:(p)=>scanAhead(p,3).some(c=>c.type==="wall")},
+  foeNear:{nm:"周圍有對手",      lbl:"九宮格內有其他機器人？",         cd:"foeNear",
+           test:(p)=>foesAround(p).length>0},
+  noFoe  :{nm:"周圍沒對手",      lbl:"九宮格內沒有其他機器人？",       cd:"noFoe",
+           test:(p)=>foesAround(p).length===0},
 };
+
+/* --- 綠卡＝「如果（條件）就（內建動作）」-----------------------------
+   動作是卡片內建的，由系統隨機發牌，玩家不能自己指定。
+   這份清單只收條件與動作搭得起來的組合，所以不會發出
+   「如果前方是障礙 → 前進 3 格」這種邏輯上永遠做不到的卡。          */
+const GREEN_PAIRS = [
+  ["canMove","f3",     2],   // 走得動就衝
+  ["canMove","f2",     2],
+  ["hasItem","f1",     2],   // 前面就是資源，踏上去撿走
+  ["item3",  "f3",     2],   // 這條線上有資源，衝過去掃
+  ["item3",  "magnet", 2],
+  ["blocked","R",      2],   // 走不通就轉向
+  ["blocked","U",      2],
+  ["isWall", "blast",  2],   // 擋路的是障礙物 → 炸掉它
+  ["wall3",  "clear3", 2],
+  ["foeNear","U",      2],   // 對手靠太近 → 掉頭跑
+  ["foeNear","clear3", 1],
+  ["noFoe",  "f3",     2],   // 附近沒人，放心加速
+];
+const GREEN_CARDS = GREEN_PAIRS.map(([cond, act, n])=>{
+  const q = COND[cond], a = ACT[act];
+  return {
+    id:`g_${cond}_${act}`, g:"green", tag:"IF",
+    nm:`如果 ${q.nm}`, sub:`→ 就 ${a.lbl}`,
+    cd:`if(${q.cd}){ ${a.cd} }`,
+    cond, act, n,
+    // 單人練習沒有對手，這兩個條件會恆假／恆真，不放進牌堆
+    solo: cond!=="foeNear" && cond!=="noFoe",
+  };
+});
 
 const CARDS = [
   // ---- 白：循序結構 ----
@@ -919,20 +975,21 @@ const CARDS = [
   {id:"y_x3", g:"yellow", tag:"LOOP", nm:"重複 ×3", sub:"夾住的動作做 3 次", cd:"repeat(3){ }", times:3, n:5},
   {id:"y_x4", g:"yellow", tag:"LOOP", nm:"重複 ×4", sub:"夾住的動作做 4 次", cd:"repeat(4){ }", times:4, n:2},
 
-  // ---- 綠：選擇結構（條件判斷）----
-  {id:"g_can",  g:"green", tag:"IF", nm:"如果 前方可通行", sub:"成立才做夾住的動作", cd:"if(canMove){ }", cond:"canMove",   n:5},
-  {id:"g_item", g:"green", tag:"IF", nm:"如果 前方有資源", sub:"成立才做夾住的動作", cd:"if(hasItem){ }", cond:"resAhead",  n:5},
-  {id:"g_wall", g:"green", tag:"IF", nm:"如果 前方是障礙", sub:"成立才做夾住的動作", cd:"if(isWall){ }",  cond:"wallAhead", n:5},
+  // ---- 綠：選擇結構（條件判斷＋內建動作，由上面的 GREEN_PAIRS 產生）----
+  ...GREEN_CARDS,
 
   // ---- 橘：發動（呼叫）----
-  {id:"o_call", g:"orange", tag:"CALL", nm:"發動", sub:"要夾在紅卡的前後兩側，紅卡才會生效", cd:"call( … )", n:10},
+  {id:"o_call", g:"orange", tag:"CALL", nm:"發動", sub:"要夾在紅卡的前後兩側，紅卡才會生效", cd:"call( … )", n:14},
 
   // ---- 紅：副程式（特殊能力）----
   {id:"r_tp", g:"red", tag:"FUNC", nm:"專車接送", sub:"瞬間移動到地圖上任一空格", cd:"teleport(x,y)", fn:"teleport", n:2},
-  {id:"r_sw", g:"red", tag:"FUNC", nm:"交換卡",   sub:"與任一位玩家交換位置",     cd:"swap(player)", fn:"swap", n:2},
+  {id:"r_sw", g:"red", tag:"FUNC", nm:"交換卡",   sub:"與任一位玩家交換位置",     cd:"swap(player)", fn:"swap", n:2, solo:false},
   {id:"r_mg", g:"red", tag:"FUNC", nm:"磁鐵",     sub:"吸走上下左右四格的資源",   cd:"magnet()",     fn:"magnet", n:2},
-  {id:"r_vr", g:"red", tag:"FUNC", nm:"病毒",     sub:"偷走一位玩家已收集的 1 個資源", cd:"virus(player)", fn:"virus", n:2},
+  {id:"r_vr", g:"red", tag:"FUNC", nm:"病毒",     sub:"偷走一位玩家已收集的 1 個資源", cd:"virus(player)", fn:"virus", n:2, solo:false},
   {id:"r_bs", g:"red", tag:"FUNC", nm:"加速器",   sub:"直線衝刺，最多前進 4 格",  cd:"boost(4)",     fn:"boost", n:2},
+  {id:"r_bm", g:"red", tag:"FUNC", nm:"炸彈",     sub:"炸掉上下左右四格的障礙物", cd:"bomb()",       fn:"bomb", n:2},
+  {id:"r_dr", g:"red", tag:"FUNC", nm:"鑽頭",     sub:"鑽過前方的障礙物，停在它後面", cd:"drill()",   fn:"drill", n:2},
+  {id:"r_wl", g:"red", tag:"FUNC", nm:"路障",     sub:"在地圖上任選一個空格放下障礙物", cd:"putWall(x,y)", fn:"putWall", n:2, solo:false},
 ];
 const CARDMAP = Object.fromEntries(CARDS.map(c=>[c.id,c]));
 
@@ -1039,7 +1096,7 @@ function renderNames(){
 const TOGGLE_DEFS = [
   {k:"white",  c:"var(--c-white)",  t:"白色卡 · 循序結構", d:"前進、左轉、右轉、迴轉（必開）", lock:true},
   {k:"yellow", c:"var(--c-yellow)", t:"黃色卡 · 重複結構", d:"迴圈：自己決定夾住哪幾張，重複跑"},
-  {k:"green",  c:"var(--c-green)",  t:"綠色卡 · 選擇結構", d:"條件判斷：成立才做夾住的動作"},
+  {k:"green",  c:"var(--c-green)",  t:"綠色卡 · 選擇結構", d:"如果⋯就⋯：條件成立才做卡片內建的動作"},
   {k:"red",    c:"var(--c-red)",    t:"橘＋紅卡 · 呼叫副程式", d:"紅卡要被兩張橘色發動卡夾住才生效"},
 ];
 function renderToggles(){
@@ -1116,8 +1173,8 @@ function buildDeck(){
              : (c.g==="green")  ? cfg.enable.green
              : cfg.enable.red;             // orange + red 同一組
     if(!on) return;
-    // 單人練習時，交換卡與病毒沒有對手可指定，不放進牌堆
-    if(cfg.mode === "solo" && (c.id === "r_sw" || c.id === "r_vr")) return;
+    // 單人練習時，需要對手才有意義的卡（交換、病毒、路障、九宮格條件）不放進牌堆
+    if(cfg.mode === "solo" && c.solo === false) return;
     for(let i=0;i<c.n;i++) pool.push(c.id);
   });
   // 牌數不足時整副再疊一次，確保 7 人 ×8 張補得動
@@ -1606,12 +1663,16 @@ function renderGuide(){
 
 function cardFace(id, mini){
   const c = CARDMAP[id];
-  if(mini) return `<span class="tag">${c.tag}</span><span class="txt"><span class="nm">${c.nm}</span><br><span class="cd">${c.cd}</span></span>`;
+  // 程式區的小卡上，綠卡第二行放「→ 就 ⋯」比放程式碼好懂
+  if(mini) return `<span class="tag">${c.tag}</span><span class="txt"><span class="nm">${c.nm}</span><br><span class="cd">${c.g==="green" ? c.sub : c.cd}</span></span>`;
   return `<span class="tag">${c.tag}</span><span class="nm">${c.nm}</span><span class="sub">${c.sub}</span><span class="cd">${c.cd}</span>`;
 }
+/* 綠卡資訊量比較大，字級另外調小一點，見 .card.gcard */
+const cardCls = (id)=>"card c-"+CARDMAP[id].g + (CARDMAP[id].g==="green" ? " gcard" : "");
 
-/* 會夾住其他卡片的結構卡（迴圈／條件） */
-const isWrapper = (id)=>{ const g = CARDMAP[id].g; return g==="yellow" || g==="green"; };
+/* 會夾住其他卡片的結構卡：只有黃色迴圈卡。
+   綠卡的動作是卡片內建的（系統隨機發牌），所以它是一張普通的單張卡。 */
+const isWrapper = (id)=>CARDMAP[id].g === "yellow";
 
 /* 把扁平的 G.program 依 span 建成巢狀樹；span 超出範圍會被外層邊界截斷 */
 function buildTree(prog, start, end){
@@ -1722,7 +1783,11 @@ function renderHand(){
   G.program.forEach(it=>{ used[it.id]=(used[it.id]||0)+1; });
   const left = {...used};
   p.hand.forEach((id, idx)=>{
-    const b = el("button","card c-"+CARDMAP[id].g, cardFace(id));
+    const b = el("button", cardCls(id), cardFace(id));
+    if(CARDMAP[id].g === "green"){
+      const q = COND[CARDMAP[id].cond], a = ACT[CARDMAP[id].act];
+      b.title = `如果「${q.lbl}」成立，就自動執行「${a.lbl}」；不成立就整張跳過。動作是卡片內建的，不能更換。`;
+    }
     if(left[id]>0){ left[id]--; b.disabled = true; b.style.visibility="hidden"; }
     else{
       if(G.discardMode){
@@ -1838,6 +1903,66 @@ function frontFree(p){
   const c = front(p);
   return !!c && c.type!=="wall" && !robotAt(c.r,c.c,p);
 }
+/* 面對方向往前 n 格（碰到地圖邊界就停），回傳格子陣列 */
+function scanAhead(p, n){
+  const [dr,dc] = DIRS[p.dir];
+  const out = [];
+  for(let i=1;i<=n;i++){
+    const c = cellOf(p.r+dr*i, p.c+dc*i);
+    if(!c) break;
+    out.push(c);
+  }
+  return out;
+}
+/* 九宮格（上下左右＋四個斜角，共八格）裡的其他機器人 */
+function foesAround(p){
+  return G.players.filter(x => x!==p &&
+    Math.abs(x.r-p.r)<=1 && Math.abs(x.c-p.c)<=1);
+}
+/* 拆掉一格的障礙物 */
+async function breakWall(cell){
+  cell.type = "open";
+  cell.wall = null;
+  paintCell(cell.r, cell.c);
+  await sleep(SPD()*0.4);
+}
+/* 清除前方 n 格內的所有障礙物 */
+async function clearAhead(p, n){
+  const walls = scanAhead(p, n).filter(c=>c.type==="wall");
+  if(!walls.length){
+    logLine(`前方 ${n} 格內沒有障礙物可以清除`, "r");
+    await sleep(SPD()*0.35);
+    return;
+  }
+  for(const c of walls){
+    logLine(`清除 ${coord(c.r,c.c)} 的 <b>${c.wall}</b> 障礙`, "y");
+    await breakWall(c);
+  }
+}
+/* 吸走上下左右四格的資源 */
+async function magnetAt(p){
+  let n = 0;
+  for(const [dr,dc] of DIRS){
+    const c = cellOf(p.r+dr, p.c+dc);
+    if(c && c.res){
+      G.pending.push(c.res);
+      logLine(`磁鐵吸走 ${coord(c.r,c.c)} 的 <b>${RES[c.res].name}</b>`, "g");
+      c.res = null; paintCell(c.r,c.c); n++;
+      await sleep(SPD()*0.3);
+    }
+  }
+  if(!n) logLine("四周沒有資源，磁鐵空手而回", "r");
+}
+/* 這一格可以放障礙物嗎？不能壓機器人／資源／CPU／地道，也不能把地圖切斷 */
+function wallOK(cell, p){
+  if(cell.type !== "open") return false;
+  if(cell.res) return false;
+  if(robotAt(cell.r, cell.c)) return false;
+  cell.type = "wall";                                     // 試放
+  const ok = connected(G.board.cells, G.board.rows, G.board.cols, {r:p.r, c:p.c});
+  cell.type = "open";                                     // 收回
+  return ok;
+}
 async function turn(p, d){
   p.dir = ((p.dir + d) % 4 + 4) % 4;
   paintRobots();
@@ -1924,20 +2049,16 @@ async function runNodes(nodes, p){
       hi(node.i);
 
     }else if(c.g === "green"){
-      const cond = COND[c.cond];
+      // 綠卡 = 如果（條件）就（卡片內建的動作）。不成立就整張跳過。
+      const cond = COND[c.cond], a = ACT[c.act];
       const yes = cond.test(p);
       logLine(`<b>${c.cd}</b> ${cond.lbl} → <b>${yes ? "是" : "否"}</b>`, yes ? "g" : "r");
       await sleep(SPD()*0.5);
-      const kids = node.children || [];
-      if(!kids.length){
-        logLine("　└ 這個條件沒有夾住任何卡片", "r");
-        await sleep(SPD()*0.3);
-      }else if(yes){
-        await runNodes(kids, p);
-        if(G.timeUp) return;
-        hi(node.i);
+      if(yes){
+        logLine(`　└ 條件成立，執行內建動作 <b>${a.lbl}</b>`, "g");
+        await a.run(p);
       }else{
-        logLine(`　└ 條件不成立，夾住的 ${countCards(kids)} 張全部跳過`, "r");
+        logLine("　└ 條件不成立，這張卡跳過，不會有任何動作", "r");
         await sleep(SPD()*0.4);
       }
 
@@ -1983,17 +2104,48 @@ const RED = {
     await landed(p);
   },
   async magnet(p){
+    await magnetAt(p);
+  },
+  async bomb(p){
     let n = 0;
     for(const [dr,dc] of DIRS){
       const c = cellOf(p.r+dr, p.c+dc);
-      if(c && c.res){
-        G.pending.push(c.res);
-        logLine(`磁鐵吸走 ${coord(c.r,c.c)} 的 <b>${RES[c.res].name}</b>`, "g");
-        c.res = null; paintCell(c.r,c.c); n++;
-        await sleep(SPD()*0.3);
+      if(c && c.type==="wall"){
+        logLine(`炸彈拆掉 ${coord(c.r,c.c)} 的 <b>${c.wall}</b>`, "y");
+        await breakWall(c); n++;
       }
     }
-    if(!n) logLine("四周沒有資源，磁鐵空手而回", "r");
+    if(!n) logLine("上下左右四格都沒有障礙物，炸彈空包彈", "r");
+  },
+  async drill(p){
+    const [dr,dc] = DIRS[p.dir];
+    const w = cellOf(p.r+dr, p.c+dc);
+    if(!w || w.type!=="wall"){
+      logLine("前方不是障礙物，鑽頭沒有作用", "r");
+      await sleep(SPD()*0.4); return;
+    }
+    const dst = cellOf(p.r+dr*2, p.c+dc*2);
+    if(!dst || dst.type==="wall" || robotAt(dst.r,dst.c,p)){
+      logLine("障礙物後面也過不去，鑽頭卡住了", "r");
+      await sleep(SPD()*0.4); return;
+    }
+    logLine(`鑽頭鑽過 ${coord(w.r,w.c)} 的 ${w.wall} → <b>${coord(dst.r,dst.c)}</b>`, "y");
+    p.r = dst.r; p.c = dst.c;
+    paintRobots(); await sleep(SPD()*0.6);
+    await landed(p);
+  },
+  async putWall(p){
+    let any = false;
+    for(let r=0;r<G.board.rows && !any;r++)
+      for(let c=0;c<G.board.cols && !any;c++)
+        if(wallOK(G.board.cells[r][c], p)) any = true;
+    if(!any){ logLine("找不到可以放路障的空格（放了會把地圖切斷）", "r"); await sleep(SPD()*0.4); return; }
+    const t = await pickCell(c=>wallOK(c,p), "路障：點選要放下障礙物的空格（會切斷通路的格子不能點）");
+    t.type = "wall";
+    t.wall = WALL_LABELS[rnd(WALL_LABELS.length)];
+    paintCell(t.r, t.c);
+    logLine(`在 <b>${coord(t.r,t.c)}</b> 放下 ${t.wall} 路障`, "y");
+    await sleep(SPD()*0.6);
   },
   async virus(p){
     const got = await pickSteal(p);
@@ -2389,7 +2541,7 @@ function showRules(){
   const groups = [
     ["white","白色卡 · 循序結構","一行一行照順序做完。程式最基本的樣子。"],
     ["yellow","黃色卡 · 重複結構","迴圈。用 ＋ ／ − 自己決定要夾住哪幾張，整段重複跑。"],
-    ["green","綠色卡 · 選擇結構","條件判斷。條件成立才做夾住的動作，不成立就整段跳過。"],
+    ["green","綠色卡 · 選擇結構","如果（條件）就（動作）。動作是卡片內建的、由系統隨機發牌，條件不成立就整張跳過。"],
     ["orange","橘色卡 · 發動","呼叫的動作本身。必須放在紅卡的前後兩側。"],
     ["red","紅色卡 · 副程式","強大的特殊能力，但一定要被兩張橘卡夾住才會生效。"],
   ];
@@ -2403,7 +2555,7 @@ function showRules(){
     <h3>一個回合做什麼</h3>
     <table class="ref">
       <tr><th style="width:5rem">1 排程</th><td>點手牌把卡片放進「程式區」，由上而下就是執行順序（本場最多 ${cfg.slots} 張）。放錯了點程式區的卡片可以收回。
-        ${(cfg.enable.yellow || cfg.enable.green) ? `黃卡與綠卡會長出一個<b>凹槽</b>，用卡片右下角的 <b>＋ ／ −</b> 決定要把下面哪幾張夾進去。` : ""}</td></tr>
+        ${cfg.enable.yellow ? `黃卡會長出一個<b>凹槽</b>，用卡片右下角的 <b>＋ ／ −</b> 決定要把下面哪幾張夾進去。` : ""}</td></tr>
       <tr><th>2 執行</th><td>按「執行 ▶」，機器人依序跑完。<b>走過的格子上有資源就會自動撿走</b>；撞到 RAM／匯流排或其他機器人就停下。</td></tr>
       <tr><th>3 分配</th><td>把撿到的資源放上任務卡，或先丟到暫存卡。任務卡集滿就得分，並立刻補一張新的任務卡。</td></tr>
       <tr><th>4 整理</th><td>可以用暫存卡「2 換 1」換到需要的資源；選擇要棄掉的手牌，然後結束回合，手牌自動補滿 8 張。</td></tr>
@@ -2443,14 +2595,27 @@ function showRules(){
       </div>`;
     }).join("")}
 
-    ${(cfg.enable.yellow || cfg.enable.green) ? `
-    <h3>迴圈與條件：自己決定要夾住哪幾張</h3>
+    ${cfg.enable.yellow ? `
+    <h3>黃卡的迴圈：自己決定要夾住哪幾張</h3>
     <table class="ref">
-      <tr><th style="width:7rem">怎麼夾</th><td>把黃卡或綠卡放進程式區後，它下面會出現一個凹槽。按卡片右下角的 <b>＋</b> 就把下一張卡夾進來，按 <b>−</b> 就吐出去。中間的數字是目前夾住幾張。</td></tr>
+      <tr><th style="width:7rem">怎麼夾</th><td>把黃卡放進程式區後，它下面會出現一個凹槽。按卡片右下角的 <b>＋</b> 就把下一張卡夾進來，按 <b>−</b> 就吐出去。中間的數字是目前夾住幾張。</td></tr>
       <tr><th>為什麼重要</th><td>同樣是「重複 ×2、左轉、左轉」，夾 <b>1 張</b>＝左轉兩次後再左轉一次（共 3 次）；夾 <b>2 張</b>＝左轉四次。<b>夾住的範圍不同，結果完全不同。</b></td></tr>
-      <tr><th>可以疊</th><td>凹槽裡還能再放一張黃卡或綠卡，形成巢狀。例如「重複 ×2」裡面夾一個「重複 ×3」，動作就會做 6 次。</td></tr>
-      <tr><th>綠卡的規則</th><td>條件<b>成立才做</b>夾住的動作；不成立就整段跳過，那幾張不會動作。</td></tr>
+      <tr><th>可以疊</th><td>凹槽裡還能再放一張黃卡，形成巢狀。例如「重複 ×2」裡面夾一個「重複 ×3」，動作就會做 6 次。</td></tr>
     </table>` : ""}
+
+    ${cfg.enable.green ? `
+    <h3>綠卡：如果⋯就⋯</h3>
+    <table class="ref">
+      <tr><th style="width:7rem">怎麼讀</th><td>每張綠卡都是<b>一整句完整的判斷</b>：上面那行是<b>條件</b>，下面「→ 就⋯」那行是條件成立時<b>自動執行的動作</b>。
+        動作是卡片<b>內建</b>的，由系統隨機發牌，<b>不能自己換</b>——你能決定的是「要不要用它、放在程式的哪一步」。</td></tr>
+      <tr><th>成立 / 不成立</th><td>執行到這張卡時先檢查條件：<b>成立就做</b>內建的動作，<b>不成立就整張跳過</b>，不會有任何動作。右邊的執行紀錄會寫出判斷結果是「是」還是「否」。</td></tr>
+      <tr><th>周圍＝九宮格</th><td>「周圍有對手 / 周圍沒對手」看的是機器人所在格的<b>上下左右加四個斜角，共八格</b>。</td></tr>
+      <tr><th>不會自相矛盾</th><td>牌組只收<b>條件和動作搭得起來</b>的組合，所以不會發出「如果前方是障礙 → 前進 3 格」這種永遠做不到的卡。</td></tr>
+      <tr><th>可以夾進迴圈</th><td>綠卡本身是一張普通的單張卡，可以被黃卡夾進迴圈裡<b>反覆判斷</b>——每一圈都會重新檢查一次條件。</td></tr>
+    </table>
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.5rem">
+      ${CARDS.filter(c=>c.g==="green").map(cardChip).join("")}
+    </div>` : ""}
 
     <h3>紅卡怎麼發動</h3>
     <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap">

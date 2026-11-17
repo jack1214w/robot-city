@@ -132,7 +132,7 @@ tr:last-child td{border-bottom:none}
     <div class="box" style="flex:1.05">
       <h2><i>1</i>一個回合四步驟<small>最上方橫幅會一直提示</small></h2>
       <div class="steps">
-        <div class="step"><b>1</b><div class="t"><strong>排程</strong>　點手牌 → 進「程式區」，<b>由上往下</b>執行。黃／綠卡會長出凹槽，按 <b>＋／−</b> 決定夾住哪幾張</div></div>
+        <div class="step"><b>1</b><div class="t"><strong>排程</strong>　點手牌 → 進「程式區」，<b>由上往下</b>執行。<b>黃卡</b>會長出凹槽，按 <b>＋／−</b> 決定夾住哪幾張</div></div>
         <div class="step"><b>2</b><div class="t"><strong>執行</strong>　按「執行 ▶」，<b>中途不能改</b>。右側執行紀錄會逐行印出發生什麼事</div></div>
         <div class="step"><b>3</b><div class="t"><strong>分配</strong>　資源放上任務卡或暫存卡。有「全部自動分配」可按</div></div>
         <div class="step"><b>4</b><div class="t"><strong>整理</strong>　可 2 換 1、棄牌 → 按「結束回合」換人，手牌自動補滿 8 張</div></div>
@@ -144,8 +144,8 @@ tr:last-child td{border-bottom:none}
       <div class="cards">
         <div class="card"><span class="sw" style="background:#fff"></span><div><strong>白 · 循序</strong>　前進 1/2/3、左轉、右轉、迴轉<br><span class="code">move(2) · turn(90)</span></div></div>
         <div class="card"><span class="sw" style="background:#EBC33F"></span><div><strong>黃 · 重複</strong>　用 <b>＋／−</b> 自己決定夾住哪幾張<br><span class="code">repeat(3){ }</span></div></div>
-        <div class="card"><span class="sw" style="background:#2F9C6E"></span><div><strong>綠 · 選擇</strong>　成立才做夾住的動作，否則整段跳過<br><span class="code">if(hasItem){ }</span></div></div>
-        <div class="card"><span class="sw" style="background:linear-gradient(90deg,#E4813A 50%,#D24A44 50%)"></span><div><strong>橘＋紅 · 副程式</strong>　必須排成 <b>橘→紅→橘</b> 才生效<br><span class="code">call( … ) · 專車接送／加速器／磁鐵／交換／病毒</span></div></div>
+        <div class="card"><span class="sw" style="background:#2F9C6E"></span><div><strong>綠 · 選擇</strong>　「如果⋯就⋯」一張卡講完。動作<b>內建、隨機發牌、不能換</b>；條件不成立整張跳過<br><span class="code">if(wall3){ clear(3) }</span></div></div>
+        <div class="card"><span class="sw" style="background:linear-gradient(90deg,#E4813A 50%,#D24A44 50%)"></span><div><strong>橘＋紅 · 副程式</strong>　必須排成 <b>橘→紅→橘</b> 才生效<br><span class="code">call( … ) · 接送／加速／磁鐵／交換／病毒／炸彈／鑽頭／路障</span></div></div>
       </div>
     </div>
   </div>
@@ -156,7 +156,7 @@ tr:last-child td{border-bottom:none}
     <table>
       <tr><th style="width:17%">項目</th><th style="width:20%">第一次這樣設</th><th>為什麼</th><th style="width:22%">熟了之後</th></tr>
       <tr><td class="k">地圖</td><td class="v">小 6×9</td><td class="why">大地圖要跑很久才碰得到彼此</td><td class="why">中 8×11</td></tr>
-      <tr><td class="k">開放卡片</td><td class="v">只開 白＋黃</td><td class="why">先搞懂「循序」和「迴圈」，一次四種會塞爆</td><td class="why">第二輪加綠，第三輪加橘紅</td></tr>
+      <tr><td class="k">開放卡片</td><td class="v">只開 白＋黃</td><td class="why">先搞懂「循序」和「迴圈」，一次四種會塞爆</td><td class="why">第二輪加綠（如果⋯就⋯），第三輪加橘紅</td></tr>
       <tr><td class="k">目標積分</td><td class="v">6 分</td><td class="why">預設 8 分對第一次偏長</td><td class="why">8～10 分</td></tr>
       <tr><td class="k">程式區格數</td><td class="v">4 格</td><td class="why">選擇少，新手比較不會卡住</td><td class="why">6 格</td></tr>
       <tr><td class="k">執行速度</td><td class="v">慢</td><td class="why">全班要看清楚機器人每一步</td><td class="why">中</td></tr>
@@ -186,20 +186,20 @@ tr:last-child td{border-bottom:none}
         <div><q>紅卡沒作用</q><span>沒被橘卡夾住。必須是 <b>橘→紅→橘</b> 三張連在一起</span></div>
         <div><q>機器人沒走到底</q><span>撞到 RAM／BUS／ROM、地圖邊界或其他機器人就停下，<b>後面的步數作廢</b></span></div>
         <div><q>迴圈跑錯次數</q><span>夾住的張數不對。按卡片右下角 <b>＋／−</b>，中間數字就是夾住幾張</span></div>
+        <div><q>綠卡好像沒動作</q><span>條件<b>不成立</b>就整張跳過，這是對的——看執行紀錄那行寫「是」還是「否」。動作是內建的，<b>換不了</b></span></div>
         <div><q>分數一直很低</q><span>資源囤在暫存卡（不計分），或一直想蓋高分建築卻湊不齊</span></div>
-        <div><q>找不到我的機器人</q><span>輪到誰就有<b>白金雙圈＋腳下發亮</b>，座標軸也會標出行列，上方直接顯示座標</span></div>
       </div>
     </div>
 
     <div class="box" style="flex:1">
       <h2><i>6</i>畫面小撇步</h2>
       <div class="tips">
-        <div><span class="key">專注地圖</span>　右上角，一鍵收起所有面板、<b>地圖自動放大</b>，講路線時好用，再按一次還原</div>
-        <div><span class="key">−</span>　每個面板右上角都能單獨收起</div>
+        <div><span class="key">專注地圖</span>　一鍵收起所有面板、<b>地圖自動放大</b>；各面板右上角的 <span class="key">−</span> 也能單獨收起</div>
         <div><span class="key">規則</span>　隨時叫出完整規則與卡片說明（計時會暫停）</div>
         <div><b>點計分板上的名字</b>　可看那位學生的任務卡；「差 N」＝他最接近完成的一張還缺幾個</div>
         <div><b>用座標討論</b>　「機器人在 C4，要往 F4」比用手指螢幕快得多</div>
         <div><b>單人練習</b>　課前自己先打一場，10 分鐘就能摸熟操作</div>
+        <div><b>找不到機器人？</b>　輪到誰就有<b>白金雙圈＋腳下發亮</b>，上方也直接顯示座標</div>
       </div>
     </div>
   </div>
