@@ -3145,6 +3145,17 @@ async function openRoom(){
       sh=>{ sh.querySelector("[data-close]").onclick = closeSheet; });
     return;
   }
+  // 線上版（GitHub Pages）或用區網位址開的：伺服器只接受本機當主機，直接說清楚，不要讓老師空等
+  if(!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)){
+    openSheet(`<h2>這個網址不能開房</h2>
+      <p style="color:var(--ink-2);max-width:56ch">線上版只能玩「單人練習」和「多人對戰（單機熱椅）」。
+      平板連線要在<b>老師自己的筆電</b>上執行：下載整個 robot-city 資料夾，<b>雙擊「平板連線-啟動.command」</b>，
+      它會在這台筆電開伺服器，並自動打開正確的網頁。</p>
+      <p style="color:var(--ink-3);font-size:.85rem">下載與安裝步驟寫在資料夾裡的「給其他老師-安裝與分享.md」。</p>
+      <div style="margin-top:1rem"><button class="btn primary big" data-close="1">知道了</button></div>`,
+      sh=>{ sh.querySelector("[data-close]").onclick = closeSheet; });
+    return;
+  }
   if(!NET.ws){
     try{ await hostConnect(); }
     catch(e){
