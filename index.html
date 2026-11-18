@@ -751,6 +751,17 @@ body.net-client #btnQuit{display:none}
 .seatpick button:disabled{opacity:.4;cursor:not-allowed}
 .seatpick button small{display:block;font-size:.7rem;font-weight:700;color:var(--ink-3)}
 @media (max-width:700px){ .lobby{grid-template-columns:1fr} }
+/* ---- 老師主控：暫停 ---- */
+.pausebar{
+  position:fixed; left:0; right:0; bottom:0; z-index:60;
+  background:var(--gold); color:#1a1205;
+  padding:.6rem 1rem; text-align:center; font-weight:900; font-size:1.05rem;
+  box-shadow:0 -4px 18px rgba(0,0,0,.3); display:none;
+}
+body.paused .pausebar{display:block}
+/* 暫停時把可以動的東西關掉，讓「現在不能動」看得出來也點不到 */
+body.paused .board, body.paused #tray, body.paused #progslots, body.paused .progbtns{filter:grayscale(.65); opacity:.45; pointer-events:none}
+body.paused #btnPause{border-color:var(--gold); color:var(--gold); font-weight:900}
 </style>
 
 <!-- ============================ 設定畫面 ============================ -->
@@ -841,6 +852,7 @@ body.net-client #btnQuit{display:none}
 
 <!-- ============================ 遊戲畫面 ============================ -->
 <div id="app">
+  <div class="pausebar" id="pausebar"></div>
   <div class="topbar">
     <div class="wordmark"><b>ROBOT CITY</b><span>機器人蓋城市</span></div>
     <div class="turnchip">
@@ -856,6 +868,8 @@ body.net-client #btnQuit{display:none}
       <span class="eyebrow" id="meterLbl"></span>
       <span class="bar"><i id="meterBar" style="width:0%"></i></span>
       <button class="btn ghost netonly hostonly" id="btnJoin">平板加入 QR</button>
+      <button class="btn ghost netonly hostonly" id="btnPause">暫停</button>
+      <button class="btn ghost netonly hostonly" id="btnSkip">跳過這回合</button>
       <button class="btn ghost" id="btnFocus">專注地圖</button>
       <button class="btn ghost" id="btnRules">規則</button>
       <button class="btn ghost" id="btnQuit">結束遊戲</button>
@@ -1357,8 +1371,12 @@ function startGame(){
     running:false, over:false, cellEls:[], robotEls:[],
     turns:0, startRes:0, viewPlayer:null,
     started:false,                 // beginTurn 之前（選面向、決定方向）都是 false
+    paused:false,                  // 老師按「暫停」：所有人的動作都擋掉
     gameId:Date.now(),             // 平板靠這個分辨「是不是新的一局」
   };
+  document.body.classList.remove("paused");
+  const pb = $("#btnPause"); if(pb) pb.textContent = "暫停";
+  paintPauseBar();
   G.startRes = countRes();
   $("#setup").classList.add("off");
   $("#app").classList.add("on");
@@ -2586,6 +2604,10 @@ const isIdx = (v, n)=>Number.isInteger(v) && v >= 0 && v < n;
 
 function handle(m, from){
   if(!G || G.over || !m || typeof m.type !== "string") return;
+  if(G.paused){                         // 老師暫停了：誰的動作都不收
+    tell(from, "老師暫停了遊戲，等老師按「繼續」", "bad");
+    return;
+  }
 
   // 開場（還沒開始第一回合）：只能選自己的面向、先手決定方向
   if(!G.started){
@@ -2980,6 +3002,8 @@ function wire(){
   $("#btnRules").onclick = ()=>{ pauseTimer(); showRules(); };
   $("#btnDiscardMode").onclick = ()=>send({type:"discardMode"});
   $("#btnJoin").onclick  = ()=>showLobby();
+  $("#btnPause").onclick = ()=>setPaused(!(G && G.paused));
+  $("#btnSkip").onclick  = ()=>skipCurrent();
   $("#btnQuit").onclick = ()=>{
     if(G.over){
       if(cfg.mode === "solo") finalScoreSolo(countRes()===0);
@@ -3060,7 +3084,7 @@ function snapFor(seat){
       score:p.score, built:p.built, missions:p.missions, buffer:p.buffer,
       hand: p.id === seat ? p.hand : []})),
     cur:G.cur, round:G.round, turns:G.turns, dirOrder:G.dirOrder, phase:G.phase,
-    started:G.started, running:G.running, over:G.over, startRes:G.startRes,
+    started:G.started, running:G.running, over:G.over, startRes:G.startRes, paused:!!G.paused,
     program: mine ? G.program : [],
     discardMode: mine && G.discardMode, discardSel: mine ? [...G.discardSel] : [],
     pending:G.pending,
@@ -3126,11 +3150,31 @@ function hostMsg(m){
   const cid = m.cid, x = m.m || {};
   if(x.t === "hello" || x.t === "claim") hostClaim(cid, x.seat, x.t === "claim");
   else if(x.t === "intent"){ const seat = NET.seatOf[cid]; if(seat != null) handle(x.m, seat); }
-  else if(x.t === "answer"){ const a = NET.asking; if(a && a.id === x.id && a.cid === cid) a.done(x.v); }
+  else if(x.t === "answer"){
+    if(G && G.paused) return;           // 暫停中：不讓遊戲因為一個答案繼續往下跑
+    const a = NET.asking;
+    if(a && a.id === x.id && a.cid === cid) a.done(x.v);
+  }
+  else if(x.t === "release"){           // 學生按「不是我的座位」
+    const seat = NET.seatOf[cid];
+    if(seat != null){
+      delete NET.seatOf[cid];
+      if(NET.cidOf[seat] === cid) delete NET.cidOf[seat];
+      lobbyChanged();
+    }
+    sendLobby(cid);
+  }
 }
 const seatCount = ()=>G ? G.players.length : cfg.count;
 const seatName  = (i)=>G ? G.players[i].name : ((cfg.names[i]||DEFAULT_NAMES[i]).trim() || DEFAULT_NAMES[i]);
 function hostClaim(cid, seat, explicit){
+  // 平板重新整理時，舊連線的 leave 有可能比新連線的 hello 晚到，座位會卡在舊 cid 上。
+  // 佔著座位的 cid 已經不在線上就直接放掉，學生才不用重新挑座位。
+  const holder = NET.cidOf[seat];
+  if(holder != null && holder !== cid && !NET.cids.has(holder)){
+    delete NET.seatOf[holder];
+    delete NET.cidOf[seat];
+  }
   const ok = Number.isInteger(seat) && seat >= 0 && seat < seatCount() && NET.cidOf[seat] == null;
   if(!ok){
     if(explicit && NET.cidOf[seat] != null && NET.cidOf[seat] !== cid) NET.to(cid, {t:"banner", msg:"這個座位已經有人了，換一個", kind:"bad"});
@@ -3287,9 +3331,103 @@ NET.abortAsk = function(v){
   a.done(v === undefined ? a.dflt : v);
 };
 
+/* ---------- 老師主控：暫停 ／ 跳過這回合 ----------
+   兩個都只在主機（投影）上有按鈕。平板收到快照裡的 paused 就自己停住。
+   刻意不做的事：學生正在平板上選東西時不給暫停（見下），因為暫停一個
+   「已經問出去的選擇」會留下學生點了沒反應的半套狀態，比等 30 秒更糟。 */
+function paintPauseBar(){
+  const b = $("#pausebar");
+  if(!b) return;
+  if(!G || !G.paused){ b.innerHTML = ""; return; }
+  b.innerHTML = NET.role === "host"
+    ? '⏸ 遊戲暫停中 — 所有平板都停住了，按上面的「繼續」就恢復'
+    : '⏸ 老師暫停了遊戲 — 你的手牌還在，等老師按「繼續」';
+}
+function setPaused(on){
+  if(NET.role === "client") return;
+  if(!G || !G.started){ banner("遊戲還沒開始，不用暫停", "bad"); return; }
+  if(G.over){ banner("遊戲已經結束了", "bad"); return; }
+  on = !!on;
+  if(!!G.paused === on) return;
+  if(on && NET.asking){
+    const sec = Math.max(0, Math.ceil((NET.asking.ends - Date.now())/1000));
+    banner(`${seatName(NET.asking.seat)} 正在平板上選擇（還有 ${sec} 秒），選完再暫停`, "bad");
+    return;
+  }
+  G.paused = on;
+  document.body.classList.toggle("paused", on);
+  if(on){
+    pauseTimer();
+    logLine("⏸ 老師暫停了遊戲", "y");
+    banner("遊戲已暫停", "bad");
+  }else{
+    resumeTimer();
+    logLine("▶ 老師讓遊戲繼續", "g");
+    banner("繼續", "good");
+  }
+  const btn = $("#btnPause");
+  if(btn) btn.textContent = on ? "繼續 ▶" : "暫停";
+  paintPauseBar();
+  renderRail();
+  syncSoon();
+}
+/* 跳過：等同「時間到」——程式區的卡留在手上，不算出過，換下一位 */
+function skipCurrent(){
+  if(NET.role === "client") return;
+  if(!G || !G.started){ banner("遊戲還沒開始，還沒有人的回合可以跳過", "bad"); return; }
+  if(G.over){ banner("遊戲已經結束了", "bad"); return; }
+  if(G.paused){ banner("先按「繼續」才能跳過", "bad"); return; }
+  if(G.running || G.phase === "run" || G.phase === "allot" || NET.asking){
+    banner("程式正在執行或有人正在選擇，等這一步做完再跳過", "bad");
+    return;
+  }
+  const nm = P().name;
+  pauseTimer();
+  openSheet(`<h2>要跳過 ${nm} 的這個回合嗎？</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0;max-width:52ch">程式區排好的卡會<b>留在手上</b>，不算出過，
+    直接換下一位。和「時間到」的處理方式一樣。</p>
+    <div style="display:flex;gap:.6rem;margin-top:1.1rem">
+      <button class="btn warn big" data-yes="1">跳過這回合</button>
+      <button class="btn ghost big" data-no="1">取消</button></div>`, (sh)=>{
+    sh.querySelector("[data-no]").onclick = ()=>{ closeSheet(); resumeTimer(); };
+    sh.querySelector("[data-yes]").onclick = ()=>{
+      closeSheet();
+      if(!G || G.over || G.paused || G.running) return;    // 等確認的這段時間狀況可能已經變了
+      banner(`已跳過 ${nm}`, "bad");
+      G.timeUp = true;                  // 讓 endTurn 不要擋「程式區還有卡沒執行」
+      stopTurnTimer();
+      G.program = [];
+      G.discardSel.clear();
+      G.discardMode = false;
+      G.phase = "tidy";
+      renderAll();
+      endTurn();
+      // beginTurn 會把執行紀錄清空，所以這行要寫在換人之後，班上才看得到發生了什麼事
+      logLine(`⏭ 上一位 <b>${nm}</b> 被老師跳過，排好的卡留在手上`, "r");
+    };
+  });
+}
+
 /* ---------- 平板端 ---------- */
+/* 座位記在這台平板的瀏覽器裡，重新整理／鎖屏重開都回得去原座位。
+   用房號當鍵：老師重開伺服器＝新房號＝這筆就失效，學生會重新挑座位（本來就該這樣）。 */
+const SEAT_KEY = "rc_live_seat";
+function seatSave(){
+  try{
+    if(NET.seat == null) localStorage.removeItem(SEAT_KEY);
+    else localStorage.setItem(SEAT_KEY, JSON.stringify({room:NET.room, seat:NET.seat}));
+  }catch(e){}                           // 無痕視窗／封鎖網站資料：記不住就算了，不能讓它壞掉
+}
+function seatForget(){ try{ localStorage.removeItem(SEAT_KEY); }catch(e){} }
+function seatLoad(room){
+  try{
+    const v = JSON.parse(localStorage.getItem(SEAT_KEY) || "null");
+    return (v && v.room === room && Number.isInteger(v.seat)) ? v.seat : null;
+  }catch(e){ return null; }
+}
 function clientBoot(room){
   NET.role = "client"; NET.room = room;
+  NET.seat = seatLoad(room);            // 記得的話，連上去就直接要回原座位
   document.body.classList.add("net-client");
   $("#setup").classList.add("off");
   $("#app").classList.add("on");
@@ -3311,15 +3449,16 @@ function clientConnect(){
 }
 function clientMsg(m){
   switch(m.t){
-    case "badroom": NET.bad = true; break;
+    case "badroom": NET.bad = true; seatForget(); break;
     case "hostdown": NET.hostUp = false; G = null; clientDropPick(); break;   // 主機重新整理＝那一局已經不在了
     case "hostup": NET.hostUp = true; NET.send({t:"hello", seat:NET.seat}); break;
     case "lobby":
       NET.lobby = m;
       NET.seat = m.you;
+      seatSave();                       // m.you 是 null（座位要不回來）時會把記憶清掉
       if(!m.started) G = null;
       break;
-    case "seat": NET.seat = m.seat; break;
+    case "seat": NET.seat = m.seat; seatSave(); break;
     case "state": applySnap(m.s); break;
     case "ask": clientAsk(m); return;
     case "cancel":
@@ -3340,10 +3479,13 @@ function applySnap(s){
            cells:s.board.cells.map((row,r)=>row.map((c,cc)=>Object.assign({r, c:cc}, c)))},
     players:s.players, cur:s.cur, round:s.round, turns:s.turns, dirOrder:s.dirOrder,
     phase:s.phase, started:s.started, running:s.running, over:s.over, startRes:s.startRes,
+    paused:!!s.paused,
     program:s.program, discardMode:s.discardMode, discardSel:new Set(s.discardSel), pending:s.pending,
     deck:[], discard:[], mdeck:[],
   });
   G.board.tunnels = G.board.tunnels.map(t=>G.board.cells[t.r][t.c]);
+  document.body.classList.toggle("paused", !!G.paused);
+  paintPauseBar();
   if(fresh){ buildBoardDOM(); applyUI(); }
   else for(let r=0;r<G.board.rows;r++) for(let c=0;c<G.board.cols;c++) paintCell(r,c);
   const me = G.players[NET.seat];
@@ -3408,8 +3550,14 @@ function clientScreen(){
       sh=>sh.querySelectorAll("[data-seat]").forEach(b=>b.onclick = ()=>NET.send({t:"claim", seat:+b.dataset.seat})));
   }
   const nm = (NET.lobby && NET.lobby.seats[NET.seat]) ? NET.lobby.seats[NET.seat].name : `${NET.seat+1}號機`;
-  if(!G) return wait(`你是 ${nm}`, "等老師按「開始遊戲」。<br>這台平板等一下會顯示<b>你自己的手牌</b>，別人看不到。");
+  if(!G) return clientSheet(`<h2>你是 ${nm}</h2>
+    <p style="color:var(--ink-2);margin:.3rem 0 0;max-width:46ch">等老師按「開始遊戲」。<br>
+    這台平板等一下會顯示<b>你自己的手牌</b>，別人看不到。</p>
+    <p style="margin-top:1.2rem"><button class="btn ghost" data-release="1">不是我的座位，重新選</button></p>`,
+    sh=>{ const b = sh.querySelector("[data-release]");
+          if(b) b.onclick = ()=>{ seatForget(); NET.seat = null; NET.send({t:"release"}); }; });
   if(G.over) return wait("遊戲結束", "抬頭看投影，公布結果！");
+  if(G.paused) return wait("老師暫停了", "你的手牌還在，不會不見。等老師按「繼續」就可以接著玩。");
   if(!G.started){
     const me = G.players[NET.seat];
     const first = G.cur === NET.seat;

@@ -2,3 +2,5 @@
 ~$*
 node_modules/
 dist/
+# 本機開發用的 launch.json，裡面是絕對路徑
+.claude/
