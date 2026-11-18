@@ -237,8 +237,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 }
 .corner{}
 .colhdr,.rowhdr{display:grid; gap:0}
-.colhdr{grid-template-columns:repeat(var(--cols),1fr)}
-.rowhdr{grid-template-rows:repeat(var(--rows),1fr)}
+.colhdr{grid-template-columns:repeat(var(--cols),var(--u,32px))}
+.rowhdr{grid-template-rows:repeat(var(--rows),var(--u,32px))}
 .colhdr i,.rowhdr i{
   display:grid;place-items:center;font-style:normal;border-radius:4px;
   font-family:"JetBrains Mono",monospace;font-size:.6rem;font-weight:700;color:var(--ink-3);
@@ -248,15 +248,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .colhdr i.hit,.rowhdr i.hit{ background:var(--gold); color:var(--ground); }
 .board{
   position:relative; display:grid; gap:0;
-  grid-template-columns:repeat(var(--cols),1fr);
-  grid-template-rows:repeat(var(--rows),1fr);
-  width:100%; height:100%; min-width:0; min-height:0;
+  /* 格子邊長一律用 fitBoard() 算好的 px（--u），不用 1fr／百分比高度：
+     iPad Safari 會把格子內容的 100% 高度算進列高，每一列被撐成整張地圖那麼高 */
+  grid-template-columns:repeat(var(--cols),var(--u));
+  grid-template-rows:repeat(var(--rows),var(--u));
+  width:calc(var(--u) * var(--cols)); height:calc(var(--u) * var(--rows));
   /* 以下由 fitBoard() 換成實際格子邊長；這裡是版面尚未算好時的後備值 */
   --u:32px; --rw:20px; --rf:12px; --lf:8px;
 }
-.cell{padding:2px; position:relative}
+.cell{position:relative; min-width:0; min-height:0}
 .pad{
-  width:100%;height:100%;border-radius:5px;
+  position:absolute; inset:2px; border-radius:5px;
   background:var(--pad); border:1px solid var(--pad-edge);
   transition:.2s;
 }
@@ -1518,6 +1520,7 @@ function fitBoard(){
   frame.style.height = (cell*rows + GUTTER) + "px";
   // 格子裡的字級、圖示大小、機器人箭頭都依這個實際邊長縮放（全部給純 px，避免 calc 失效）
   const bd = $("#board");
+  frame.style.setProperty("--u", cell + "px");   // 座標軸也用同一個邊長
   bd.style.setProperty("--u",  cell + "px");
   bd.style.setProperty("--rw", Math.round(cell * 0.62) + "px");
   bd.style.setProperty("--rf", Math.round(cell * 0.36) + "px");
