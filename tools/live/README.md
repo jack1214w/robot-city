@@ -30,6 +30,7 @@
 | `release` 訊息 | 平板 →主機 | 學生按「不是我的座位，重新選」時送出 |
 | 暫停 | `setPaused()`、`G.paused`、快照裡的 `paused` | `handle()` 最前面就擋掉所有意圖；暫停中收到的 `answer` 直接丟掉 |
 | 跳過 | `skipCurrent()` | 走的是「時間到」那條路：`G.timeUp = true` → 清空程式區 → `endTurn()`。紀錄要寫在 `endTurn()` **之後**，因為 `beginTurn()` 會清空 `#log` |
+| 等待時預排 | `draftHandle()` / `takeDraft()` / `p.draft` | 只收 `DRAFT_OK` 那四種意圖，碰不到遊戲狀態。平板端在 `applySnap()` 直接把 `s.draft` 放進 `G.program`，所以所有 render 函式不必分辨現在是預排還是正式程式區 |
 
 **`NET.asking` 不為 null 時不給暫停**，這是刻意的，不是沒做完——理由寫在
 `docs/平板連線模式-規劃.md` 第 0 節「第二次交付實作時做的決定」。

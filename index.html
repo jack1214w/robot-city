@@ -751,6 +751,20 @@ body.net-client #btnQuit{display:none}
 .seatpick button:disabled{opacity:.4;cursor:not-allowed}
 .seatpick button small{display:block;font-size:.7rem;font-weight:700;color:var(--ink-3)}
 @media (max-width:700px){ .lobby{grid-template-columns:1fr} }
+/* ---- 預排：還沒輪到自己，先把程式排好 ---- */
+body.drafting [data-panelbox="prog"]{border-color:var(--teal)}
+body.drafting #progLbl{color:var(--teal)}
+body.drafting .progslots{
+  background:repeating-linear-gradient(135deg,transparent 0 10px,color-mix(in srgb,var(--teal) 7%,transparent) 10px 20px);
+  border-radius:10px;
+}
+.draftnote{
+  display:none; margin-top:.5rem; padding:.4rem .6rem; border-radius:8px;
+  border:1px dashed var(--teal); color:var(--teal);
+  font-size:.78rem; font-weight:800; line-height:1.35;
+}
+body.drafting .draftnote{display:block}
+
 /* ---- 老師主控：暫停 ---- */
 .pausebar{
   position:fixed; left:0; right:0; bottom:0; z-index:60;
@@ -902,9 +916,10 @@ body.paused #btnPause{border-color:var(--gold); color:var(--gold); font-weight:9
     <div class="col" id="colProg">
       <button class="coltab" data-coltab="prog">程式區 · 執行紀錄 ⟩</button>
       <div class="panel" data-panelbox="prog">
-        <header><span class="eyebrow">程式區 / PROGRAM</span><span class="eyebrow" id="progCount">0/6</span><button class="pmin" data-panel="prog" title="縮小">－</button></header>
+        <header><span class="eyebrow" id="progLbl">程式區 / PROGRAM</span><span class="eyebrow" id="progCount">0/6</span><button class="pmin" data-panel="prog" title="縮小">－</button></header>
         <div class="body">
           <div class="progslots" id="progslots"></div>
+          <div class="draftnote" id="draftnote">還沒輪到你，這些是<b>先排好的</b>——輪到你時會自動放進程式區，現在還不會執行。隨時可以改。</div>
           <div class="progbtns" style="display:flex;gap:.35rem;margin-top:.6rem">
             <button class="btn primary" id="btnRun" style="flex:1;justify-content:center">執行 ▶</button>
             <button class="btn ghost" id="btnClear">清空</button>
@@ -1361,6 +1376,7 @@ function startGame(){
       score:0, built:[],
     };
     for(let k=0;k<8;k++) p.hand.push(deck.pop());
+    p.draft = [];                  // 還沒輪到自己時先排好的程式（只有自己看得到）
     for(let k=0;k<cfg.missions;k++) p.missions.push({b:mdeck.pop(), have:{wood:0,iron:0,stone:0,sand:0}});
     players.push(p);
   }
@@ -1687,11 +1703,20 @@ function P(){ return G.players[G.cur]; }
 function HANDP(){ return NET.role === "client" ? G.players[NET.seat] : P(); }
 /* 這台裝置現在可以出牌嗎？熱椅永遠可以（輪到誰誰就坐在電腦前）*/
 function myTurn(){ return NET.role !== "client" || NET.seat === G.cur; }
+/* 平板、還沒輪到自己、遊戲進行中 → 程式區現在放的是「預排」，可以編輯但不能執行 */
+function drafting(){
+  return NET.role === "client" && !myTurn() && G.started && !G.over && !G.paused;
+}
+/* 每位玩家預排了幾張（只有張數，不含內容）：投影用來看大家準備得如何 */
+function draftCounts(){
+  return NET.role === "client" ? (G.drafted || []) : G.players.map(x=>(x.draft || []).length);
+}
 
 function beginTurn(){
   G.started = true;
   G.phase = "program";
-  G.program = [];
+  const pre = takeDraft(G.players[G.cur]);     // 等待時先排好的，直接接上
+  G.program = pre;
   G.pending = [];
   G.discardMode = false;
   G.discardSel = new Set();
@@ -1699,10 +1724,13 @@ function beginTurn(){
   $("#log").innerHTML = "";
   const p = P();
   logLine(`— <b>${p.name}</b> 的回合 · 位置 <b>${coord(p.r,p.c)}</b> · 面向 <b>${DIRNAME[p.dir]}</b> —`);
+  if(pre.length) logLine(`等待時先排好的 <b>${pre.length}</b> 張已經放進程式區`, "y");
   renderAll();
   startTurnTimer();
   banner(cfg.mode === "solo" ? `第 ${G.turns+1} / ${cfg.rounds} 回合` : `輪到 ${p.name}`);
-  if(NET.role === "host") NET.toSeat(p.id, {t:"banner", msg:"輪到你了！排好程式按「執行 ▶」", kind:"good"});
+  if(NET.role === "host") NET.toSeat(p.id, {t:"banner",
+    msg: pre.length ? `輪到你了！你先排的 ${pre.length} 張已經在程式區，可以改、也可以直接執行`
+                    : "輪到你了！排好程式按「執行 ▶」", kind:"good"});
 }
 
 function renderAll(){ renderTop(); renderProgram(); renderHand(); renderRail(); paintRobots(); }
@@ -1756,7 +1784,12 @@ function guideTip(){
   const nextP = G.players[(G.cur + G.dirOrder + G.players.length) % G.players.length];
   if(NET.role === "host"){            // 投影畫面：全班一起看的說明
     switch(G.phase){
-      case "program": return `輪到 <b>${p.name}</b>：正在自己的平板上排程式（已放 <b>${G.program.length}</b> 張）。按下執行後，程式會在這裡公開。`;
+      case "program": {
+        const d = draftCounts();
+        const ready = G.players.filter(x=>x.id !== G.cur && (d[x.id] || 0) > 0).length;
+        const tail = ready ? `　｜　已經有 <b>${ready}</b> 位先把下一輪的程式排好了` : "";
+        return `輪到 <b>${p.name}</b>：正在自己的平板上排程式（已放 <b>${G.program.length}</b> 張）。按下執行後，程式會在這裡公開。${tail}`;
+      }
       case "run":     return `<b>${p.name}</b> 的程式執行中——右邊的<b>執行紀錄</b>會一行一行告訴大家發生了什麼事。`;
       case "allot":   return `<b>${p.name}</b> 正在平板上把撿到的資源放上任務卡。`;
       case "tidy":    return `<b>${p.name}</b> 可以在平板上 2 換 1、棄牌，完成後按「結束回合」換 <b>${nextP.name}</b>。`;
@@ -1766,9 +1799,12 @@ function guideTip(){
     const me = HANDP(), n = G.players.length;
     let k = 0, i = G.cur;
     do{ i = (i + G.dirOrder + n) % n; k++; }while(i !== me.id && k < n);
-    return G.phase === "run"
-      ? `<b>${p.name}</b> 的機器人正在跑——<b>抬頭看投影</b>！`
-      : `現在輪到 <b>${p.name}</b>，${k === 1 ? "<b>下一位就是你</b>" : `再 <b>${k}</b> 位就輪到你`}。先看看手牌，想想下一步要怎麼走。`;
+    const who = k === 1 ? "<b>下一位就是你</b>" : `再 <b>${k}</b> 位就輪到你`;
+    const mine = G.program.length;      // 平板上這時候放的就是自己的預排
+    const run = G.phase === "run" ? `<b>${p.name}</b> 的機器人正在跑——<b>抬頭看投影</b>。` : "";
+    return mine
+      ? `${run}現在輪到 <b>${p.name}</b>，${who}。你已經先排了 <b>${mine}</b> 張，輪到你時會自動放進程式區。`
+      : `${run}現在輪到 <b>${p.name}</b>，${who}。<b>可以先點手牌把程式排好</b>，輪到你就直接執行，不用現想。`;
   }
   switch(G.phase){
     case "program":{
@@ -1835,27 +1871,38 @@ function spanOf(i){
   return Math.min(item.span || 0, G.program.length - i - 1);
 }
 /* 調整夾住的張數 */
+/* 下面兩個吃任意陣列，正式程式區與「還沒輪到時的預排」共用同一套規則 */
+function progBump(arr, i, d){
+  const item = arr[i];
+  if(!item) return;
+  const max = arr.length - i - 1;
+  item.span = Math.max(0, Math.min(max, (item.span||0) + d));
+}
+function progRemoveAt(arr, i){
+  arr.splice(i,1);
+  // 被移掉一張後，前面所有結構卡夾住的範圍要同步縮回來
+  arr.forEach((it,j)=>{
+    if(isWrapper(it.id) && it.span > 0 && j < i && j + it.span >= i) it.span--;
+  });
+}
 function bumpSpan(i, d){
   if(G.phase !== "program") return;
-  const item = G.program[i];
-  const max = G.program.length - i - 1;
-  item.span = Math.max(0, Math.min(max, (item.span||0) + d));
+  progBump(G.program, i, d);
   renderProgram(); renderHand();
 }
 function removeAt(i){
   if(G.phase !== "program") return;
-  G.program.splice(i,1);
-  // 被移掉一張後，前面所有結構卡夾住的範圍要同步縮回來
-  G.program.forEach((it,j)=>{
-    if(isWrapper(it.id) && it.span > 0 && j < i && j + it.span >= i) it.span--;
-  });
+  progRemoveAt(G.program, i);
   renderProgram(); renderHand();
 }
 
 function renderProgram(){
   syncSoon();
   const host = $("#progslots"); host.innerHTML = "";
-  const editable = G.phase === "program" && myTurn();
+  const pre = drafting();
+  // 預排不受主機階段影響——別人正在執行程式的時候也能排，那正是最空的時間
+  const editable = pre || (G.phase === "program" && myTurn());
+  document.body.classList.toggle("drafting", pre);
 
   // 投影畫面：排程中只顯示「蓋著的牌」，按下執行才公開
   if(NET.role === "host" && G.phase === "program"){
@@ -1922,8 +1969,9 @@ function renderProgram(){
   }
 
   $("#progCount").textContent = `${G.program.length}/${cfg.slots}`;
-  $("#btnRun").disabled = !editable || G.program.length===0;
+  $("#btnRun").disabled   = pre || !editable || G.program.length===0;   // 預排不能執行
   $("#btnClear").disabled = !editable || G.program.length===0;
+  $("#progLbl").textContent = pre ? "預排中 / PRE-PLAN" : "程式區 / PROGRAM";
   renderGuide();
 }
 
@@ -1933,6 +1981,8 @@ function renderHand(){
   if(NET.role === "host") return;     // 投影畫面不畫任何人的手牌
   const p = HANDP();
   const mine = myTurn();
+  const pre = drafting();
+  const canPlace = pre || (G.phase === "program" && mine);
   const used = {};
   G.program.forEach(it=>{ used[it.id]=(used[it.id]||0)+1; });
   const left = {...used};
@@ -1948,13 +1998,14 @@ function renderHand(){
         b.classList.toggle("sel", G.discardSel.has(idx));
         b.onclick = ()=>send({type:"toggleDiscard", idx});
       }else{
-        b.disabled = G.phase!=="program" || !mine;
+        b.disabled = !canPlace;
         b.onclick = ()=>send({type:"addCard", id});
       }
     }
     host.appendChild(b);
   });
-  $("#handHint").textContent = !mine ? `你的手牌 · 等 ${P().name} 出牌`
+  $("#handHint").textContent = pre ? `你的手牌 · 可以先排好，輪到你就直接用`
+    : !mine ? `你的手牌 · 等 ${P().name} 出牌`
     : G.discardMode ? "點卡片標記／取消棄牌"
     : G.phase==="program" ? "點卡片 → 放進程式區" : "本回合已執行完畢";
   $("#btnDiscardMode").textContent = G.discardMode ? `完成選擇（${G.discardSel.size} 張）` : "選擇要棄掉的牌";
@@ -2602,6 +2653,59 @@ function tell(from, msg, kind){
 }
 const isIdx = (v, n)=>Number.isInteger(v) && v >= 0 && v < n;
 
+/* ---------- 預排（還沒輪到自己的時候） ----------
+   只改那位玩家自己的 draft，碰不到 G.program、G.cur、棋盤或任何遊戲狀態，
+   所以不管主機正在跑哪個階段都可以排。輪到他時由 takeDraft() 搬進程式區。
+   熱椅模式永遠走不到這裡：send() 傳的 from 就是 G.cur。                      */
+const DRAFT_OK = new Set(["addCard", "removeCard", "bumpSpan", "clearProgram"]);
+function draftHandle(m, seat){
+  const p = G.players[seat];
+  if(!p) return;
+  const d = p.draft || (p.draft = []);
+  switch(m.type){
+    case "addCard":{
+      if(!CARDMAP[m.id]) return;
+      const have = p.hand.filter(x=>x === m.id).length;
+      const used = d.filter(x=>x.id === m.id).length;
+      if(used >= have) return;                                  // 手上沒有這張了
+      if(d.length >= cfg.slots){ tell(seat, "程式區已滿", "bad"); return; }
+      d.push(isWrapper(m.id) ? {id:m.id, span:0} : {id:m.id});
+      break;
+    }
+    case "removeCard":
+      if(!isIdx(m.i, d.length)) return;
+      progRemoveAt(d, m.i);
+      break;
+    case "bumpSpan":
+      if(!isIdx(m.i, d.length) || !isWrapper(d[m.i].id) || (m.d !== 1 && m.d !== -1)) return;
+      progBump(d, m.i, m.d);
+      break;
+    case "clearProgram":
+      p.draft = [];
+      break;
+    default: return;
+  }
+  NET.toSeat(seat, {t:"state", s:snapFor(seat)});                // 只回給他自己，別人畫面不動
+  renderGuide();                                                 // 投影上的「已經有幾位排好了」要跟著更新
+}
+/* 輪到他了：把預排搬進程式區。手牌理論上沒變過，還是擋一次防呆 */
+function takeDraft(p){
+  const d = p.draft || [];
+  p.draft = [];
+  const left = {};
+  p.hand.forEach(id=>{ left[id] = (left[id] || 0) + 1; });
+  const out = [];
+  d.forEach(it=>{
+    if(out.length >= cfg.slots) return;
+    if(!CARDMAP[it.id] || !(left[it.id] > 0)) return;
+    left[it.id]--;
+    out.push(isWrapper(it.id) ? {id:it.id, span:it.span || 0} : {id:it.id});
+  });
+  // 有卡被剔掉的話，夾住的範圍要收回來，不能指到不存在的位置
+  out.forEach((it,i)=>{ if(isWrapper(it.id)) it.span = Math.min(it.span || 0, out.length - i - 1); });
+  return out;
+}
+
 function handle(m, from){
   if(!G || G.over || !m || typeof m.type !== "string") return;
   if(G.paused){                         // 老師暫停了：誰的動作都不收
@@ -2613,6 +2717,11 @@ function handle(m, from){
   if(!G.started){
     if(m.type === "face" && typeof from === "number" && isIdx(m.dir, 4)) setFace(from, m.dir);
     if(m.type === "order" && from === G.cur && (m.d === 1 || (m.d === -1 && G.players.length > 2))) startWithOrder(m.d);
+    return;
+  }
+  // 還沒輪到的人：可以先在自己的程式區預排，但只有這四種動作，而且不會動到遊戲狀態
+  if(typeof from === "number" && from !== G.cur){
+    if(DRAFT_OK.has(m.type)) draftHandle(m, from);
     return;
   }
   if(from !== G.cur) return;            // 不是你的回合 → 不准
@@ -3086,6 +3195,8 @@ function snapFor(seat){
     cur:G.cur, round:G.round, turns:G.turns, dirOrder:G.dirOrder, phase:G.phase,
     started:G.started, running:G.running, over:G.over, startRes:G.startRes, paused:!!G.paused,
     program: mine ? G.program : [],
+    draft: (G.players[seat] && G.players[seat].draft) || [],   // 只送這個座位自己的
+    drafted: G.players.map(x=>(x.draft || []).length),         // 給投影看的張數，不含內容
     discardMode: mine && G.discardMode, discardSel: mine ? [...G.discardSel] : [],
     pending:G.pending,
     timer: limitSec() && (G.timerId || G.timerPaused) ? {paused:!!G.timerPaused, left:tLeft} : null,
@@ -3480,7 +3591,10 @@ function applySnap(s){
     players:s.players, cur:s.cur, round:s.round, turns:s.turns, dirOrder:s.dirOrder,
     phase:s.phase, started:s.started, running:s.running, over:s.over, startRes:s.startRes,
     paused:!!s.paused,
-    program:s.program, discardMode:s.discardMode, discardSel:new Set(s.discardSel), pending:s.pending,
+    // 輪到自己＝真正的程式區；還沒輪到＝自己的預排。後面所有 render 都不必分辨
+    program: (s.cur === NET.seat) ? s.program : (s.draft || []),
+    drafted:s.drafted || [],
+    discardMode:s.discardMode, discardSel:new Set(s.discardSel), pending:s.pending,
     deck:[], discard:[], mdeck:[],
   });
   G.board.tunnels = G.board.tunnels.map(t=>G.board.cells[t.r][t.c]);
